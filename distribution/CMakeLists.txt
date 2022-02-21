@@ -1,0 +1,1 @@
+install(FILES categorical.h distribution.h multi_categorical.h normal.h DESTINATION include/policy/distribution)

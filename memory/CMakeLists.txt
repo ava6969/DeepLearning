@@ -1,0 +1,1 @@
+install(FILES recurrent_net.h DESTINATION include/${PROJECT_NAME}/memory)
