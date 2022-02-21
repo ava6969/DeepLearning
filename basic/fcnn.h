@@ -24,7 +24,7 @@ namespace sam_dn{
                           bool new_bias=true);
 
         inline torch::Tensor forward(const torch::Tensor &x) noexcept override {
-            return m_BaseModel->forward(x.view({-1, opt.dims[0]}));
+            return m_BaseModel->forward(x.reshape({-1, opt.dims[0]}));
         }
 
     };
