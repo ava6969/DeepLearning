@@ -13,6 +13,7 @@
 #include "vision/residual_block.h"
 #include "vision/resnet.h"
 #include "wrappers/adapters.h"
+#include "vision/impala_residual_block.h"
 #include "builder.h"
 
 
@@ -34,7 +35,9 @@ namespace sam_dn{
         registerCallBack<sam_dn::Conv2DPositionEncodeImpl>("conv2d_pos_encode");
         registerCallBack<sam_dn::ResidualBlockImpl, sam_dn::CNNOption>("resnet_block");
         registerCallBack<sam_dn::ResnetHolderImpl, sam_dn::ResnetHolderImpl::Option>("resnet");
+        registerCallBack<sam_dn::ImpalaResidualBlockImpl, sam_dn::ImpalaResidualBlockImpl::Option>("impala_resnet_block");
         registerCallBack<sam_dn::MaxPool2DImpl, sam_dn::CNNOption>("max_pool2d");
+        registerCallBack<sam_dn::ImpalaResnetImpl, sam_dn::ImpalaResnetImpl::Option>("impala_resnet");
 
         registerCallBack<sam_dn::LSTMBatchFirstImpl , sam_dn::RecurrentNetOption>("bf_lstm");
         registerCallBack<sam_dn::RNNBatchFirstImpl , sam_dn::RecurrentNetOption>("bf_rnn");

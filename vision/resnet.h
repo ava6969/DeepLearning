@@ -84,7 +84,7 @@ namespace sam_dn{
             m_stride = stride;
         }
 
-        torch::Tensor forward(torch::Tensor x)
+        torch::Tensor forward(torch::Tensor const& x)
         {
             auto identity = x;
 
@@ -273,19 +273,24 @@ namespace sam_dn{
             m_maxpool = register_module("maxpool", torch::nn::MaxPool2d{
                             torch::nn::MaxPool2dOptions({3, 3}).stride({2, 2}).padding({1, 1})});
 
-            m_layer1 = register_module("layer1", make_layer<BlockType>(64, layers.at(0)));
-            m_layer2 = register_module("layer2", make_layer<BlockType>(128, layers.at(1), 2,
+            if(layers.at(0)>0)
+                m_layer1 = register_module("layer1", make_layer<BlockType>(64, layers.at(0)));
+            if(layers.at(1)>0)
+                m_layer2 = register_module("layer2", make_layer<BlockType>(128, layers.at(1), 2,
                                                                        replace_stride_with_dilation->at(0)));
-            m_layer3 = register_module("layer3", make_layer<BlockType>(256, layers.at(2), 2,
-                                                                       replace_stride_with_dilation->at(1)));
-            m_layer4 = register_module("layer4", make_layer<BlockType>(512, layers.at(3), 2,
-                                                                       replace_stride_with_dilation->at(2)));
+            if(layers.at(2)>0)
+                m_layer3 = register_module("layer3", make_layer<BlockType>(256, layers.at(2), 2,
+                                                                           replace_stride_with_dilation->at(1)));
+            if(layers.at(3)>0)
+                m_layer4 = register_module("layer4", make_layer<BlockType>(512, layers.at(3), 2,
+                                                                           replace_stride_with_dilation->at(2)));
 
-            m_avgpool = register_module("avgpool", torch::nn::AdaptiveAvgPool2d(
-                    torch::nn::AdaptiveAvgPool2dOptions({1, 1})));
-
-            if(num_classes)
+            if(num_classes){
+                m_avgpool = register_module("avgpool", torch::nn::AdaptiveAvgPool2d(
+                        torch::nn::AdaptiveAvgPool2dOptions({1, 1})));
                 m_fc = register_module("fc", torch::nn::Linear(512 * BlockType::m_expansion, num_classes.value()));
+            }
+
 
             // auto all_modules = modules(false);
             // https://pytorch.org/cppdocs/api/classtorch_1_1nn_1_1_module.html#_CPPv4NK5torch2nn6Module7modulesEb

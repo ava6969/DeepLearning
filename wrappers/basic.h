@@ -138,13 +138,14 @@ namespace sam_dn{
 
     struct MaxPool2DImpl: public ModuleWithSizeInfoImpl{
         torch::nn::MaxPool2d pool_2d{nullptr};
+        torch::nn::ZeroPad2d m_padding{nullptr};
+
         bool flatten_out;
     public:
-        explicit MaxPool2DImpl(CNNOption const& opt):ModuleWithSizeInfoImpl(opt){
+        explicit MaxPool2DImpl(CNNOption opt):ModuleWithSizeInfoImpl(opt){
 
-            pool_2d = register_module("pool_2d", torch::nn::MaxPool2d(torch::nn::MaxPool2dOptions(opt.kernels[0])
-            .stride(opt.strides[0])));
-            auto _opt = pool_2d->options;
+            auto _opt = torch::nn::MaxPool2dOptions(opt.kernels[0]).stride(opt.strides[0]);
+            pool_2d = register_module("pool_2d", torch::nn::MaxPool2d(_opt));
 
             auto size_fn = [_opt](int s, int i) {
                 return (
@@ -153,19 +154,39 @@ namespace sam_dn{
             auto _in_shape = opt.InputShape();
 
             if(opt.flatten_output)
-                m_OutputSize = {  size_fn(_in_shape.height, 0) * size_fn(_in_shape.width, 1) * _in_shape.channel   };
+                m_OutputSize = {  size_fn(_in_shape.height, 1) * size_fn(_in_shape.width, 0) * _in_shape.channel   };
+            else if(not opt.padding.empty() and  opt.padding[0] == "same"){
+
+                auto valid_w = size_fn(_in_shape.height, 1);
+                auto valid_h = size_fn(_in_shape.width, 0);
+
+                int w = floorl( (_in_shape.width - 1) / _opt.stride()->at(0)) + 1;
+                int h = floorl( (_in_shape.height - 1) / _opt.stride()->at(1)) + 1;
+
+                if(  valid_h < h and valid_w < w){
+                    auto l_r = w-valid_w;
+                    auto t_b = h-valid_h;
+                    torch::nn::ZeroPad2dOptions pad_opt({l_r, l_r, t_b, t_b});
+                    REGISTER_MODULE(m_padding,  torch::nn::ZeroPad2d(pad_opt) );
+                    m_OutputSize = { _in_shape.channel, w, h};
+                }else{
+                    std::cerr << "Cant use Same padding for maxpool2d, resize\n";
+                    m_OutputSize = { _in_shape.channel, valid_h, valid_w};
+                }
+            }
             else
-                m_OutputSize = { _in_shape.channel, size_fn(_in_shape.height, 0), size_fn(_in_shape.width, 1)};
+                m_OutputSize = { _in_shape.channel, size_fn(_in_shape.width, 0), size_fn(_in_shape.height, 1)};
 
             flatten_out = opt.flatten_output;
 
         }
 
-        torch::Tensor forward(torch::Tensor const& x) noexcept override{
-            return flatten_out ? torch::flatten( pool_2d(x) ) : pool_2d(x);
+        inline torch::Tensor forward(torch::Tensor const& x) noexcept override{
+            auto out = m_padding ? m_padding(x) : x;
+            return flatten_out ? torch::flatten( pool_2d(out) ) : pool_2d(out);
         }
-        TensorDict* forwardDict(TensorDict* x) noexcept override{
-            x->insert_or_assign(m_Output, pool_2d(x->at(m_Input))); return x;
+        inline TensorDict* forwardDict(TensorDict* x) noexcept override{
+            x->insert_or_assign(m_Output, forward(x->at(m_Input))); return x;
         }
     };
 

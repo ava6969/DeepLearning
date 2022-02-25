@@ -12,6 +12,7 @@
 #include "string"
 #include "vector"
 #include "unordered_map"
+#include "optional"
 
 namespace sam_dn{
 
@@ -108,7 +109,7 @@ namespace sam_dn{
         int64_t n_heads{}, n_embed{};
         bool layer_norm{}, post_layer_norm{};
         float qk_w{}, v_w{}, post_w{};
-        bool max_pool{};
+        std::optional<bool> max_pool{};
         int64_t n_features{}, features_size{};
 
         void Input(std::vector<int64_t> const& x) override {

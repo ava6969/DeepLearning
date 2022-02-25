@@ -7,6 +7,7 @@
 
 #include "base.h"
 #include "common/common.h"
+#include "optional"
 
 namespace sam_dn{
 
@@ -85,7 +86,8 @@ namespace sam_dn{
             att_sum = att_sum.reshape({-1, this->opt.n_features, this->opt.n_embed});
             auto x = inp + post_a_mlp(att_sum);
             x = post_norm ? post_norm.value()(x) : x;
-            x = opt.max_pool ? std::get<0>(torch::max(x, -2)) : torch::mean(x, -2);
+            if(opt.max_pool != std::nullopt)
+                x = opt.max_pool.value() ? std::get<0>(torch::max(x, -2)) : torch::mean(x, -2);
             return x;
         }
 

@@ -61,11 +61,24 @@ namespace sam_dn{
             auto nextShape = outputShape(opt.InputShape(), 0, _opt.dilation()->at(0), opt.kernels[i], opt.strides[i]);
 
             if(opt.padding[i] == "same") {
-                auto pad_h = opt.InputShape().height - opt.InputShape().height;
-                auto pad_w = opt.InputShape().width  - opt.InputShape().width;
-                _opt.padding({pad_h, pad_w, pad_h, pad_w});
-                assert(pad_h == pad_w);
-                nextShape = outputShape(opt.InputShape(), pad_h, _opt.dilation()->at(0), opt.kernels[i], opt.strides[i]);
+                auto w = _opt.kernel_size()->at(0);
+                auto h = _opt.kernel_size()->at(1);
+
+                auto stride_w = _opt.stride()->at(0);
+                auto stride_h = _opt.stride()->at(1);
+
+                auto _in_shape = opt.InputShape();
+                int top = ceil(h / 2);
+                int bottom = floor(h / 2);
+                int left = ceil(w / 2);
+                int right = floor(w / 2);
+
+                torch::nn::ZeroPad2dOptions pad_opt({left, right, top, bottom});
+                m_BaseModel->push_back("padding" + std::to_string(i), torch::nn::ZeroPad2d(pad_opt) );
+
+                nextShape = Conv2DInput{int(((_in_shape.width + right + left - w) / stride_w) + 1),
+                                        int(((_in_shape.height + top + bottom - h) / stride_h) + 1),
+                                        opt.filters[i+1]};
             }
 
             Net net(_opt);

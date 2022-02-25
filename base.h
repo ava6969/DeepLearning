@@ -8,6 +8,8 @@
 #include "common/options.h"
 #include "torch/torch.h"
 
+#define REGISTER_MODULE(attr, inst) this-> attr = register_module(#attr, inst )
+
 using TensorDict =  std::unordered_map<std::string, torch::Tensor>;
 using TensorTuple = std::tuple<torch::Tensor, torch::Tensor>;
 namespace sam_dn{
