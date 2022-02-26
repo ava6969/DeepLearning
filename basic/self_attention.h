@@ -41,7 +41,7 @@ namespace sam_dn{
                 _opt.elementwise_affine(true);
                 post_norm = register_module("post_layer_norm", torch::nn::LayerNorm(_opt));
             }
-            m_OutputSize = { opt.features_size };
+            m_OutputSize = opt.max_pool.has_value() ? std::vector{ opt.features_size } : opt.dict_opt.at(m_Input);
         }
 
         auto forward_pass( torch::Tensor const& x){
@@ -86,7 +86,7 @@ namespace sam_dn{
             att_sum = att_sum.reshape({-1, this->opt.n_features, this->opt.n_embed});
             auto x = inp + post_a_mlp(att_sum);
             x = post_norm ? post_norm.value()(x) : x;
-            if(opt.max_pool != std::nullopt)
+            if(opt.max_pool.has_value())
                 x = opt.max_pool.value() ? std::get<0>(torch::max(x, -2)) : torch::mean(x, -2);
             return x;
         }
