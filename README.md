@@ -47,9 +47,9 @@ Install dependencies:
 Build the library:
 ```
 export Torch_DIR=~/
-mkdir /cmake-build-debug/
+mkdir cmake-build-debug
 cd cmake-build-debug
 cmake -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_MAKE_PROGRAM=make ..
-cmake --build ..
+cmake --build .
 ```
 And you're done!
