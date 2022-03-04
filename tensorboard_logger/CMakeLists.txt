@@ -5,6 +5,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR})
 set (CMAKE_CXX_STANDARD 11)
 find_package(Protobuf REQUIRED)
 
+message('protofbuf ${Protobuf_VERSION}')
 file(GLOB protos "proto/*.proto")
 
 protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS ${protos})
