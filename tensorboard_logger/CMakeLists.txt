@@ -1,9 +1,11 @@
+set(CMAKE_TOOLCHAIN_FILE $ENV{HOME}/vcpkg/scripts/buildsystems/vcpkg.cmake CACHE STRING "Vcpkg toolchain file")
+
 project(tensorboard_logger)
 cmake_minimum_required(VERSION 2.8.12)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR})
 set (CMAKE_CXX_STANDARD 11)
-find_package(Protobuf REQUIRED)
+find_package(protobuf CONFIG REQUIRED)
 
 message('protofbuf ${Protobuf_VERSION}')
 file(GLOB protos "proto/*.proto")
@@ -20,7 +22,7 @@ target_include_directories(tensorboard_logger PUBLIC
     ${Protobuf_INCLUDE_DIRS}
     ${PROJECT_BINARY_DIR}
     )
-target_link_libraries(tensorboard_logger PUBLIC ${Protobuf_LIBRARIES})
+target_link_libraries(tensorboard_logger PUBLIC protobuf::libprotoc protobuf::libprotobuf protobuf::libprotobuf-lite)
 
 add_executable(test
     tests/test_tensorboard_logger.cc
