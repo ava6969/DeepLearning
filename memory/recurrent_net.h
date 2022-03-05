@@ -199,10 +199,10 @@ namespace sam_dn{
         inline void fillState(TensorDict* x) const noexcept{
             // flattent hxs incase of num_layer > 1
             if constexpr(type == 'l'){
-                x->template insert_or_assign(hidden_state_key.first, std::get<0>(this->m_States).flatten(0, 1));
-                x->template insert_or_assign(hidden_state_key.second, std::get<1>(this->m_States).flatten(0, 1));
+                x->template insert_or_assign(hidden_state_key.first, std::get<0>(this->m_States).flatten(0, 1).data());
+                x->template insert_or_assign(hidden_state_key.second, std::get<1>(this->m_States).flatten(0, 1).data());
             }else{
-                x->template insert_or_assign(hidden_state_key, this->m_States.flatten(0, 1));
+                x->template insert_or_assign(hidden_state_key, this->m_States.flatten(0, 1).data());
             }
         }
 
