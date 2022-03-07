@@ -8,14 +8,14 @@ project(deep_networks)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${TORCH_CXX_FLAGS}")
 set(Torch_DIR $ENV{HOME}/libtorch/share/cmake/Torch)
-add_subdirectory(tensorboard_logger)
+
 
 find_package(Torch REQUIRED 1.10)
 find_package(yaml-cpp  REQUIRED 0.7.0)
 
-add_library(${PROJECT_NAME} STATIC "" vision/impala_residual_block.cpp)
+add_library(${PROJECT_NAME} STATIC "" vision/impala_residual_block.cpp )
 target_include_directories( ${PROJECT_NAME} PRIVATE .)
-target_link_libraries(${PROJECT_NAME} PRIVATE ${TORCH_LIBRARIES} yaml-cpp tensorboard_logger)
+target_link_libraries(${PROJECT_NAME} PRIVATE ${TORCH_LIBRARIES} yaml-cpp )
 
 add_subdirectory(basic)
 add_subdirectory(vision)
@@ -30,8 +30,8 @@ if(${BUILD_EXAMPLES})
         string(REPLACE .cpp "" executable_name ${SRC_FILE})
         string(REPLACE ${CMAKE_SOURCE_DIR}/examples/ "" executable_name ${executable_name})
         add_executable(${executable_name} ${SRC_FILE} vision/impala_residual_block.h vision_debugger.h)
-        target_link_libraries(${executable_name} PRIVATE ${PROJECT_NAME} ${TORCH_LIBRARIES} yaml-cpp tensorboard_logger)
-        target_include_directories( ${executable_name} PRIVATE . tensorboard_logger)
+        target_link_libraries(${executable_name} PRIVATE ${PROJECT_NAME} ${TORCH_LIBRARIES} yaml-cpp )
+        target_include_directories( ${executable_name} PRIVATE . )
     endforeach()
 endif()
 
