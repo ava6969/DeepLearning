@@ -15,12 +15,12 @@ namespace sam_dn{
         explicit ResidualBlockImpl(CNNOption opt);
 
         inline torch::Tensor forward ( torch::Tensor const& x) noexcept override{
-            const auto& residual = torch::relu(x);
-            auto out = torch::relu(conv1(x));
-            out = conv2(x);
-            out += residual;
+            auto out = torch::relu(x);
+            out = torch::relu(conv1(out));
+            out = conv2(out);
+            out += x;
             out = relu_out ? torch::relu(out) : out;
-            return flatten_out ? torch::flatten(x, 1) : x;
+            return flatten_out ? torch::flatten(out, 1) : out;
         }
 
         inline TensorDict * forwardDict(TensorDict *x) noexcept override{
