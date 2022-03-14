@@ -12,6 +12,7 @@
 
 using TensorDict =  std::unordered_map<std::string, torch::Tensor>;
 using TensorTuple = std::tuple<torch::Tensor, torch::Tensor>;
+
 namespace sam_dn{
 
     struct ModuleWithSizeInfoImpl :  torch::nn::Module{
@@ -40,8 +41,11 @@ namespace sam_dn{
 
     };
 
-    template<class ModuleOptionT = BaseModuleOption, class BaseModuleT=torch::nn::Sequential,
-            typename StateType=NoState, bool BatchFirst=false, bool parseRecurseDict=false>
+    template<class ModuleOptionT = BaseModuleOption,
+            class BaseModuleT=torch::nn::Sequential,
+            typename StateType=NoState,
+            bool BatchFirst=false,
+            bool parseRecurseDict=false>
     class BaseModuleImpl : public ModuleWithSizeInfoImpl {
 
     public:
@@ -49,7 +53,7 @@ namespace sam_dn{
         explicit BaseModuleImpl(BaseModuleT const& impl) : m_BaseModel( impl ) {
             if constexpr( std::is_same_v<BaseModuleT, torch::nn::Sequential> ){
 
-                auto modules = static_cast<torch::nn::Sequential>(impl)->modules();
+                auto modules = static_cast<torch::nn::Sequential>(impl)->modules(); // TODO: change to .children()
 
                 auto ptr = std::find_if(modules.begin(), modules.end(),
                                         [](const std::shared_ptr<torch::nn::Module>& module){
