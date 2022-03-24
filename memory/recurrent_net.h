@@ -33,7 +33,8 @@ namespace sam_dn{
 
     public:
         explicit RecurrentNetImpl(RecurrentNetOption opt):
-        BaseModuleImpl<RecurrentNetOption, MemoryType, StateType, batchFirst>(opt), device(opt.device){
+        BaseModuleImpl<RecurrentNetOption, MemoryType, StateType, batchFirst>(opt),
+                device(opt.device){
 
             opt.type = fullType() + std::to_string(ctr);
             hidden_out_key = opt.type;
@@ -45,7 +46,10 @@ namespace sam_dn{
 
             this->m_OutputSize = std::vector<int64_t>{opt.hidden_size};
             initializeWeightBias(this->m_BaseModel, opt);
-            initialStateWithBatchSizeAndDevice(opt.batch_size, opt.device);
+
+            device = this->m_BaseModel->all_weights()[0].device();
+
+            initialStateWithBatchSizeAndDevice(opt.batch_size, device);
             opt.batch_first = batchFirst;
             baseBatchSz = opt.batch_size;
             ctr++;
@@ -65,9 +69,9 @@ namespace sam_dn{
             auto shape = std::vector<int64_t>{this->opt.num_layers, batch_size, this->opt.hidden_size};
 
             if constexpr (std::is_same_v<StateType, TensorTuple>){
-                this->m_States  = {torch::zeros(shape, this->opt.device), torch::zeros(shape, this->opt.device)};
+                this->m_States  = { torch::zeros(shape, this->device), torch::zeros(shape, this->device) };
             }else{
-                this->m_States   = torch::zeros(shape, this->opt.device);
+                this->m_States   = torch::zeros(shape, this->device);
             }
         }
 
