@@ -48,4 +48,58 @@ namespace sam_dn{
 
     }
 
+    torch::Tensor ImpalaResidualBlockImpl::forward ( torch::Tensor const& x) noexcept {
+        auto out = conv_layer(x);
+        if (drop_out)
+            out = drop_out(out);
+
+        if (batch_norm)
+            out = batch_norm(out);
+
+        return residualBlock2(residualBlock1(max_pool(out)));
+    }
+
+    ImpalaResnetImpl::ImpalaResnetImpl(Option opt): BaseModuleImpl<>(opt) {
+        int i = 0;
+        Conv2DInput inp = {static_cast<int>(opt.dict_opt[m_Input][1]),
+                           static_cast<int>( opt.dict_opt[m_Input][2]),
+                           static_cast<int>(opt.dict_opt[m_Input][0])};
+
+        this->m_BaseModel = torch::nn::Sequential();
+        ImpalaResidualBlockImpl::Option _opt;
+        std::for_each(opt.filters.begin(), opt.filters.end() - 1, [&](auto sz) {
+            _opt.conv_option.filters = {sz};
+            _opt.conv_option.activations = {"none"};
+            _opt.conv_option.setInput(inp);
+            _opt.res_option1.filters = {sz};
+            _opt.res_option1.kernels = {3};
+            _opt.res_option2.filters = {sz};
+            _opt.res_option2.kernels = {3};
+            _opt.drop_out = opt.drop_out;
+            _opt.batch_norm = opt.batch_norm;
+            auto block = ImpalaResidualBlock(_opt);
+            auto out_sz = block->outputSize();
+            inp = {static_cast<int>(out_sz[1]),
+                   static_cast<int>(out_sz[2]),
+                   static_cast<int>(out_sz[0])};
+            this->m_BaseModel->push_back(block);
+        });
+
+        _opt.conv_option.filters = {opt.filters.back()};
+        _opt.conv_option.setInput(inp);
+
+        if (opt.relu_last)
+            _opt.res_option2.activations = {"relu"};
+        _opt.res_option2.flatten_output = opt.flatten_out;
+
+        auto block = ImpalaResidualBlock(_opt);
+        auto out_sz = block->outputSize();
+        inp = {static_cast<int>(out_sz[1]),
+               static_cast<int>(out_sz[2]),
+               static_cast<int>(out_sz[0])};
+
+        m_OutputSize = block->outputSize();
+        this->m_BaseModel->push_back(block);
+        register_module("impala_resnet", m_BaseModel);
+    }
 }

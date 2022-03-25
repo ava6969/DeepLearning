@@ -2,7 +2,7 @@
 // Created by dewe on 12/9/21.
 //
 
-//#define DEBUG_VISION
+#define DEBUG_VISION
 
 #include "vision/conv_net.h"
 #include "basic/fcnn.h"

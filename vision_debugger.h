@@ -3,7 +3,7 @@
 //
 
 #pragma once
-#include "opencv2/opencv.h"
+
 #include "tensorboard_logger.h"
 #include "filesystem"
 #include "mutex"
@@ -15,24 +15,47 @@ namespace sam_dn {
 
     class VisionDebugger {
 
+        static inline VisionDebugger* instance{nullptr};
+
         mutable std::mutex mtx;
         mutable std::unique_ptr<TensorBoardLogger> m_TLogger{nullptr};
 
+        static inline std::string to_string(std::stringstream & ss)
+        {
+            // discover size of data in stream
+            ss.seekg(0, std::ios::beg);
+            auto bof = ss.tellg();
+            ss.seekg(0, std::ios::end);
+            auto stream_size = std::size_t(ss.tellg() - bof);
+            ss.seekg(0, std::ios::beg);
+
+            // make your vector long enough
+            std::string v;
+            v.resize(stream_size);
+
+            // read directly in
+            ss.read((char*)v.data(), std::streamsize(v.size()));
+
+            return v;
+        }
+
         void encode(torch::Tensor processed, std::string const &tag, int step, int h, int w, int c)
         const {
+
+            std::stringstream ss;
             if (processed.dtype() != c10::kByte)
                 processed = (processed * 255).to(c10::kByte);
 
-            cv::Mat img()
-//            std::ostringstream ss;
-//            torch::save(processed, ss);
-//            std::string img = ss.str();
-//            m_TLogger->add_image(tag, step, img, h, w, c);
+            torch::serialize::OutputArchive archive;
+            archive.write("tensor", processed);
+            archive.save_to(ss);
+
+            std::string img = to_string(ss);
+            m_TLogger->add_image(tag, step, img, h, w, c);
         }
 
-    public:
         VisionDebugger() {
-            GOOGLE_PROTOBUF_VERIFY_VERSION;
+//            GOOGLE_PROTOBUF_VERIFY_VERSION;
             std::filesystem::path const & _path = "vision_debug_run";
 
             std::stringstream ss;
@@ -42,6 +65,15 @@ namespace sam_dn {
                << "." << boost::asio::ip::host_name() << "_vision_debug.pb";
             auto result = _path / ss.str();
             m_TLogger = std::make_unique<TensorBoardLogger>(result.string().c_str());
+        }
+
+    public:
+
+        static VisionDebugger* ptr(){
+            if(instance) return instance;
+
+            instance = new VisionDebugger();
+            return instance;
         }
 
         void addImage(std::string const &tag,
@@ -68,9 +100,13 @@ namespace sam_dn {
             }
 
         }
+
+    ~VisionDebugger() {
+
+
+        delete instance;
+    }
+
     };
 
-#ifdef DEBUG_VISION
-    const VisionDebugger VISION_DEBUGGER;
-#endif
 }

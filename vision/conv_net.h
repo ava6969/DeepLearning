@@ -16,6 +16,28 @@
 
 namespace sam_dn {
 
+    struct Conv2DInput {
+        int width{}, height{}, channel{};
+    };
+
+    struct CNNOption : BaseModuleOption{
+    private:
+        Conv2DInput inputShape;
+
+    public:
+        std::vector<int> filters{}, kernels{}, strides{};
+        std::vector <std::string> padding{}, activations{};
+        bool flatten_output = {false};
+
+        void Input(std::vector<int64_t> const& x) override;
+
+        [[nodiscard]] auto InputShape() const { return inputShape; }
+
+        void setInput(Conv2DInput const& in){
+            inputShape = in;
+        }
+    };
+
     template<typename Net, typename Option>
     class ConvNetImpl : public BaseModuleImpl<CNNOption> {
 
@@ -53,11 +75,11 @@ namespace sam_dn {
 
                 if(auto* _net = net_pair.value()->template as<torch::nn::Conv2d>()){
                     img = _net->forward(img);
-                    VISION_DEBUGGER.addImages(this->m_Input + "_" + net_pair.key(),
+                    VisionDebugger::ptr()->addImages(this->m_Input + "_" + net_pair.key(),
                                               result.flatten(0, 1).unsqueeze(1));
                 }else if(auto* p_net = net_pair.value()->template as<torch::nn::ZeroPad2d>()){
                     img = p_net->forward(img);
-                    VISION_DEBUGGER.addImages(this->m_Input + "_" + net_pair.key(),
+                    VisionDebugger::ptr()->addImages(this->m_Input + "_" + net_pair.key(),
                                               result.flatten(0, 1).unsqueeze(1));
                 }
             }
@@ -84,5 +106,12 @@ namespace sam_dn {
     TORCH_MODULE(CNNTranspose);
 
 }
+
+//#include "conv_net.cpp"
+
+SAM_OPTIONS2(Conv2DInput, SELF(width), SELF(height), SELF(channel))
+
+SAM_OPTIONS(BaseModuleOption, CNNOption, SELF(filters), SELF(kernels), SELF(strides),
+            SELF(padding), SELF(activations), SELF(flatten_output))
 
 #endif //SAMFRAMEWORK_CONV_NET_H

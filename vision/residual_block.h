@@ -5,7 +5,7 @@
 #ifndef DEEP_NETWORKS_RESIDUAL_BLOCK_H
 #define DEEP_NETWORKS_RESIDUAL_BLOCK_H
 
-#include "base.h"
+#include "conv_net.h"
 
 namespace sam_dn{
     class ResidualBlockImpl : public ModuleWithSizeInfoImpl

@@ -8,14 +8,18 @@ project(deep_networks)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${TORCH_CXX_FLAGS}")
 set(Torch_DIR $ENV{HOME}/libtorch/share/cmake/Torch)
+set(SAM_PATH $ENV{HOME}/sam)
 
+add_subdirectory(${SAM_PATH}/tensorboard_logger ${CMAKE_BINARY_DIR}/tensorboard)
 
 find_package(Torch REQUIRED 1.10)
 find_package(yaml-cpp  REQUIRED 0.7.0)
 
-add_library(${PROJECT_NAME} STATIC "" vision/impala_residual_block.cpp )
-target_include_directories( ${PROJECT_NAME} PRIVATE .)
-target_link_libraries(${PROJECT_NAME} PRIVATE ${TORCH_LIBRARIES} yaml-cpp )
+add_library(${PROJECT_NAME} STATIC base.tpp)
+target_include_directories( ${PROJECT_NAME} PRIVATE .
+                                            PUBLIC ${SAM_PATH}/tensorboard_logger/include)
+target_link_libraries(${PROJECT_NAME} PRIVATE ${TORCH_LIBRARIES} yaml-cpp
+                                        PUBLIC tensorboard_logger )
 
 add_subdirectory(basic)
 add_subdirectory(vision)

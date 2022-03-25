@@ -2,12 +2,27 @@
 // Created by dewe on 10/21/21.
 //
 
-#include "conv_net.h"
 #include "common/common.h"
 #include "basic/fcnn.h"
+#include "conv_net.h"
 
 namespace sam_dn{
 
+    void CNNOption::Input(std::vector<int64_t> const& x) {
+        switch (x.size()) {
+            case 1:
+                inputShape = Conv2DInput{1, 1, static_cast<int>(x[0])};
+                break;
+            case 2:
+                inputShape = Conv2DInput{static_cast<int>(x[0]), static_cast<int>(x[1]), 1};
+                break;
+            case 3:
+                inputShape = Conv2DInput{static_cast<int>(x[1]), static_cast<int>(x[2]), static_cast<int>(x[0])};
+                break;
+            default:
+                throw std::runtime_error("Conv2d input size requires 1 <= Observation Size <= 3");
+        }
+    }
 
     template<>
     int  ConvNetImpl<torch::nn::Conv2d, torch::nn::Conv2dOptions>::outputShape(int side,

@@ -9,6 +9,15 @@
 
 namespace sam_dn{
 
+    struct FCNNOption : BaseModuleOption{
+        std::vector<int64_t> dims;
+        std::string act_fn{"relu"};
+
+        void Input(std::vector<int64_t> const& x) override {
+            dims.insert(dims.begin(), x.begin(), x.end());
+        }
+    };
+
     class FCNNImpl : public BaseModuleImpl<FCNNOption> {
 
     public:
@@ -31,5 +40,6 @@ namespace sam_dn{
     TORCH_MODULE(FCNN);
 }
 
+SAM_OPTIONS(BaseModuleOption, FCNNOption, SELF(dims), SELF(act_fn));
 
 #endif //SAMFRAMEWORK_FCNN_H

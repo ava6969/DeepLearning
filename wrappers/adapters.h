@@ -5,7 +5,7 @@
 #ifndef SAM_RL_TRADER_ADAPTERS_H
 #define SAM_RL_TRADER_ADAPTERS_H
 
-#include "common/yaml_options.h"
+#include "base.h"
 
 namespace sam_dn{
 

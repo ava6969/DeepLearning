@@ -5,7 +5,6 @@
 #ifndef DEEP_NETWORKS_BASIC_H
 #define DEEP_NETWORKS_BASIC_H
 
-#include "torch/torch.h"
 #include "base.h"
 #include "boost/algorithm/string.hpp"
 
@@ -234,5 +233,8 @@ namespace sam_dn{
     TORCH_MODULE(Concat3);
 
 }
+
+SAM_OPTIONS(BaseModuleOption, LayerNorm1dImpl::Option, SELF(axis));
+SAM_OPTIONS(BaseModuleOption, DropoutImpl::Option, SELF(prob));
 
 #endif //DEEP_NETWORKS_BASIC_H

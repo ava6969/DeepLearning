@@ -2,10 +2,9 @@
 // Created by dewe on 9/17/21.
 //
 
-#ifndef SAMFRAMEWORK_BASE_H
-#define SAMFRAMEWORK_BASE_H
+#pragma once
 
-#include "common/options.h"
+#include "common/yaml_helper.h"
 #include "torch/torch.h"
 
 #define REGISTER_MODULE(attr, inst) this-> attr = register_module(#attr, inst )
@@ -15,11 +14,22 @@ using TensorTuple = std::tuple<torch::Tensor, torch::Tensor>;
 
 namespace sam_dn{
 
+    struct BaseModuleOption{
+        std::string input{}, output{}, weight_init_type{"none"}, bias_init_type{"none"};
+        float weight_init_param{ std::sqrt(2.f) }, bias_init_param{ 0 };
+        bool new_bias{};
+        std::unordered_map<std::string, std::vector<int64_t>> dict_opt;
+
+        virtual void Input(std::vector<int64_t> const&) {}
+    };
+
     struct ModuleWithSizeInfoImpl :  torch::nn::Module{
         [[nodiscard]] inline auto outputSize() const { return m_OutputSize; }
 
         ModuleWithSizeInfoImpl()=default;
+
         ModuleWithSizeInfoImpl(ModuleWithSizeInfoImpl const&)=default;
+
         explicit ModuleWithSizeInfoImpl(BaseModuleOption const &opt) :
         m_Input(opt.input), m_Output(opt.output) {}
 
@@ -37,9 +47,10 @@ namespace sam_dn{
             std::vector<int64_t> m_OutputSize{};
     };
 
-    struct NoState{
+    struct NoState{};
 
-    };
+#define BASEMODULE_IMPL_T template<class ModuleOptionT, class BaseModuleT, typename StateType, bool BatchFirst, bool parseRecurseDict>
+#define BASEMODULET BaseModuleImpl<ModuleOptionT, BaseModuleT, StateType, BatchFirst, parseRecurseDict>
 
     template<class ModuleOptionT = BaseModuleOption,
             class BaseModuleT=torch::nn::Sequential,
@@ -50,63 +61,17 @@ namespace sam_dn{
 
     public:
         BaseModuleImpl() = default;
-        explicit BaseModuleImpl(BaseModuleT const& impl) : m_BaseModel( impl ) {
-            if constexpr( std::is_same_v<BaseModuleT, torch::nn::Sequential> ){
 
-                auto modules = static_cast<torch::nn::Sequential>(impl)->modules(); // TODO: change to .children()
-
-                auto ptr = std::find_if(modules.begin(), modules.end(),
-                                        [](const std::shared_ptr<torch::nn::Module>& module){
-                    return module->as<ModuleWithSizeInfoImpl>() != nullptr;
-                });
-
-                if(ptr != end(modules)){
-                    auto castedModule = std::dynamic_pointer_cast<ModuleWithSizeInfoImpl>(*ptr);
-                    this->m_Input = castedModule->input();
-                    this->m_Output = castedModule->output();
-                }
-            }
-        }
+        explicit BaseModuleImpl(BaseModuleT const& impl);
 
         explicit BaseModuleImpl(ModuleOptionT const &opt):ModuleWithSizeInfoImpl(opt),
         opt(opt){}
 
-        inline torch::Tensor forward(torch::Tensor const& x) noexcept override {
+        torch::Tensor forward(torch::Tensor const& x) noexcept override;
 
-            if constexpr(std::is_same_v<StateType, NoState>) {
-                auto y = m_BaseModel->forward(x);
-                return y;
-            } else {
-                torch::Tensor out;
-                if constexpr (BatchFirst)
-                    out = x.view({opt.batch_size, -1, x.size(-1)});
-                else
-                    out = x.view({-1, opt.batch_size, x.size(-1)});
+        TensorDict* forwardDict(TensorDict *x) noexcept override;
 
-                std::tie(out, m_States) = this->m_BaseModel->forward(out, m_States);
-                return opt.return_all_seq ? out.contiguous().flatten(0, 1) :
-                       out.slice(int(BatchFirst), -1).contiguous().view({opt.batch_size, -1});
-            }
-        }
-
-        inline TensorDict * forwardDict(TensorDict *x) noexcept override{
-            if constexpr( std::is_same_v<BaseModuleT, torch::nn::Sequential> and parseRecurseDict){
-                for(auto& module : this->m_BaseModel->children())
-                    if( auto _m = module->template as<ModuleWithSizeInfoImpl>() ){
-                        x = _m->forwardDict(x);
-                    }
-            }
-            else if constexpr( std::is_same_v<StateType, NoState>) {
-                x->insert_or_assign(m_Output,
-                                    this->m_BaseModel->forward( x->at(m_Input) ));
-            }else {
-                std::tie(x->at(m_Output), m_States) =
-                                    this->m_BaseModel->forward( x->at(m_Input), m_States );
-            }
-            return x;
-        }
-
-        void registerModule(std::string const& name) noexcept{
+        inline void registerModule(std::string const& name) noexcept{
             assert(m_BaseModel);
             register_module(name, m_BaseModel);
         }
@@ -115,20 +80,7 @@ namespace sam_dn{
             return m_States;
         }
 
-        inline void initialState(StateType const& new_state) noexcept {
-            if constexpr( std::is_same_v<StateType, NoState>) {
-                return;
-            }
-
-            if constexpr (std::is_same_v<StateType, TensorTuple>){
-                auto state1 = std::get<0>(new_state);
-                auto state2 = std::get<1>(new_state);
-                this->m_States = std::make_tuple(state1.data().view({this->opt.num_layers, -1, this->opt.hidden_size}),
-                                                 state2.data().view({this->opt.num_layers, -1, this->opt.hidden_size}));
-            }else{
-                this->m_States = std::move(new_state.data().view({this->opt.num_layers, -1, this->opt.hidden_size}));
-            }
-        }
+        void initialState(StateType const& new_state) noexcept;
 
         bool constexpr isRecurrent(){ return not std::is_same_v<StateType, NoState>; }
 
@@ -152,7 +104,39 @@ namespace sam_dn{
     using DefaultRecurseModule  = sam_dn::BaseModuleImpl<
             sam_dn::BaseModuleOption, torch::nn::Sequential,
             sam_dn::NoState, false, true>;
+
     TORCH_MODULE(ModuleWithSizeInfo);
 }
 
-#endif //SAMFRAMEWORK_BASE_H
+#include "base.tpp"
+
+using namespace sam_dn;
+
+namespace YAML {
+    template<>
+    struct convert<sam_dn::BaseModuleOption> {
+        static Node encode(const sam_dn::BaseModuleOption &self) {
+            return ENCODE(SELF(input), SELF(output),
+                          SELF(weight_init_param), SELF(bias_init_param),
+                          SELF(weight_init_type), SELF(bias_init_type), SELF(new_bias));
+        }
+
+        static bool decode(const Node &node, sam_dn::BaseModuleOption &rhs) {
+
+            DEFINE_REQUIRED(rhs, input);
+            DEFINE_REQUIRED(rhs, output);
+            DEFINE(rhs, weight_init_type, "none");
+            DEFINE(rhs, bias_init_type, "none");
+            DEFINE(rhs, new_bias, true);
+
+            if (rhs.weight_init_type != "none") {
+                DEFINE_REQUIRED(rhs, weight_init_param);
+            }
+
+            if (rhs.bias_init_type != "none") {
+                DEFINE_REQUIRED(rhs, bias_init_param);
+            }
+            return true;
+        }
+    };
+}

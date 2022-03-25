@@ -2,8 +2,7 @@
 // Created by dewe on 11/13/21.
 //
 
-#ifndef SAM_RL_YAML_HELPER_H
-#define SAM_RL_YAML_HELPER_H
+#pragma once
 
 #include "yaml-cpp/yaml.h"
 #include <optional>
@@ -105,118 +104,122 @@ namespace YAML {
             return true;
         }
     };
-}
 
-template<class T>
-struct NodePair{
-    T& value;
-    std::string key;
-};
+    template<class T>
+    struct NodePair{
+        T& value;
+        std::string key;
+    };
 
-template<class T>
-inline static T get(YAML::Node const &val, T default_value){
-    return val.IsDefined() ? val.as<T>() : default_value;
-}
-
-template<class T>
-inline static T try_get(YAML::Node const & node, std::string  key){
-    if( node[key].IsDefined() )
-        return  node[key].as<T>();
-    else{
-        throw std::runtime_error("attribute ["s.append(key).append("] is required."));
+    template<class T>
+    inline static T get(YAML::Node const &val, T default_value){
+        return val.IsDefined() ? val.as<T>() : default_value;
     }
-}
 
-template<class T>
-inline static T push_back_optional(YAML::Node &node, std::optional<T> rhs){
-    node.push_back( rhs.has_value() ? std::to_string( rhs.value() ) : "~" );
-}
-
-#define DEFINE_REQUIRED(opt, input) opt. input = try_get<decltype(opt. input)>(node, #input)
-#define DEFINE(opt, input, value) opt. input = get<decltype(opt. input)>(node[#input], value)
-#define DEFINE_DEFAULT(opt, input) opt. input = get<decltype(opt. input)>(node[#input], opt. input)
-#define DEFINE_DEFAULT_SUB_NODE(node, opt, input) opt. input = get<decltype(opt. input)>(node[#input], opt. input)
-#define DEFINE_DEFAULT_RAW_NODE(opt, input) opt. input = get<decltype(opt. input)>(node, opt. input)
-
-#define BEGIN_EXCEPTION_CHECK try{
-#define END_EXCEPTION_CHECK  } catch (std::exception const& exp) { std::cerr << exp.what() << "\n"; return false; } return true;
-
-template<class T>
-inline static void push(YAML::Node& node, T attribute){
-    node.push_back(attribute);
-}
-
-template<class T>
-inline static void push(YAML::Node& node, NodePair<T> attribute){
-    node.push_back(attribute.value);
-}
-
-template<typename ... Args>
-inline static void push(YAML::Node& node, Args ... Fargs){
-    push(node, Fargs...);
-}
-
-inline static void get_t(const YAML::Node &node, NodePair< std::optional<c10::Device> > arg){
-    arg.value = node["device"].IsDefined() ? torch::Device(node["device"].as<std::string>()) : c10::kCPU;
-}
-
-template<class T>
-inline static void get_t(const YAML::Node &node, NodePair<T> arg){
-    if(arg.key.empty())
-        throw std::runtime_error("NodePair arg.key is empty , which means an attribute doesnt match the text passed "
-                                 "into SELF(...)");
-    arg.value = get<T>(node[arg.key], arg.value);
-}
-
-template <std::size_t I, typename Tuple>
-static void get_helper(const YAML::Node &node, Tuple&& tuple)
-{
-    get_t(node, std::get<I>(std::forward<Tuple>(tuple)));
-
-    if constexpr (I != 0) {
-        get_helper<I - 1>(node, std::forward<Tuple>(tuple));
+    template<class T>
+    inline static T try_get(YAML::Node const & node, std::string  key){
+        if( node[key].IsDefined() )
+            return  node[key].as<T>();
+        else{
+            throw std::runtime_error("attribute ["s.append(key).append("] is required."));
+        }
     }
-}
 
-template<class ... Targs>
-inline static void DECODE(const YAML::Node &node, Targs ... args){
-    get_helper<sizeof...(Targs) - 1>( node,  std::forward_as_tuple( std::forward<Targs>(args)... ) );
-}
+    template<class T>
+    inline static T push_back_optional(YAML::Node &node, std::optional<T> rhs){
+        node.push_back( rhs.has_value() ? std::to_string( rhs.value() ) : "~" );
+    }
 
-template<class ... Args>
-inline static YAML::Node ENCODE(Args ... Fargs){
-    YAML::Node node;
-    push(node, Fargs...);
-    return node;
-}
+    #define DEFINE_REQUIRED(opt, input) opt. input = try_get<decltype(opt. input)>(node, #input)
+    #define DEFINE(opt, input, value) opt. input = get<decltype(opt. input)>(node[#input], value)
+    #define DEFINE_DEFAULT(opt, input) opt. input = get<decltype(opt. input)>(node[#input], opt. input)
+    #define DEFINE_DEFAULT_SUB_NODE(node, opt, input) opt. input = get<decltype(opt. input)>(node[#input], opt. input)
+    #define DEFINE_DEFAULT_RAW_NODE(opt, input) opt. input = get<decltype(opt. input)>(node, opt. input)
 
-#define CONVERT(class_type, ...)     \
-template<> \
-struct convert<class_type> { \
-    static YAML::Node encode(const class_type &self) { \
-        return ENCODE(__VA_ARGS__); \
-    } \
-    static bool decode(const YAML::Node &node, class_type &self) { \
+    #define BEGIN_EXCEPTION_CHECK try{
+    #define END_EXCEPTION_CHECK  } catch (std::exception const& exp) { std::cerr << exp.what() << "\n"; return false; } return true;
+
+    template<class T>
+    inline static void push(YAML::Node& node, T attribute){
+        node.push_back(attribute);
+    }
+
+    template<class T>
+    inline static void push(YAML::Node& node, NodePair<T> attribute){
+        node.push_back(attribute.value);
+    }
+
+    template<typename ... Args>
+    inline static void push(YAML::Node& node, Args ... Fargs){
+        push(node, Fargs...);
+    }
+
+    inline static void get_t(const YAML::Node &node, NodePair< std::optional<c10::Device> > arg){
+        arg.value = node["device"].IsDefined() ? torch::Device(node["device"].as<std::string>()) : c10::kCPU;
+    }
+
+    template<class T>
+    inline static void get_t(const YAML::Node &node, NodePair<T> arg){
+        if(arg.key.empty())
+            throw std::runtime_error("NodePair arg.key is empty , which means an attribute doesnt match the text passed "
+                                     "into SELF(...)");
+        arg.value = get<T>(node[arg.key], arg.value);
+    }
+
+    template <std::size_t I, typename Tuple>
+    static void get_helper(const YAML::Node &node, Tuple&& tuple){
+        get_t(node, std::get<I>(std::forward<Tuple>(tuple)));
+
+        if constexpr (I != 0) {
+            get_helper<I - 1>(node, std::forward<Tuple>(tuple));
+        }
+    }
+
+    template<class ... Targs>
+    inline static void DECODE(const YAML::Node &node, Targs ... args){
+        get_helper<sizeof...(Targs) - 1>( node,  std::forward_as_tuple( std::forward<Targs>(args)... ) );
+    }
+
+    template<class ... Args>
+    inline static YAML::Node ENCODE(Args ... Fargs){
+        YAML::Node node;
+        push(node, Fargs...);
+        return node;
+    }
+
+    #define SAM_OPTIONS2(class_type, ...)     \
+    namespace YAML { \
+    template<> \
+    struct convert<class_type> {              \
+                                              \
+        static Node encode(const class_type &self) { \
+            return ENCODE(__VA_ARGS__); \
+        }                                     \
+                                              \
+        static bool decode(const Node &node, class_type &self) { \
             BEGIN_EXCEPTION_CHECK    \
-            DECODE(node, __VA_ARGS__);                 \
-        END_EXCEPTION_CHECK          \
-        }                            \
-        };                              \
+                DECODE(node, __VA_ARGS__);                 \
+            END_EXCEPTION_CHECK                                                        \
+            }                            \
+            };                                                                         \
+            }                              \
 
 
-#define CONVERT_WITH_PARENT(parent_class_type, class_type, ...)     \
-template<> \
-struct convert<class_type> { \
-    static YAML::Node encode(const class_type &self) { \
-        return ENCODE(__VA_ARGS__); \
-    } \
-    static bool decode(const YAML::Node &node, class_type &self) {  \
-        if(! convert<parent_class_type>::decode(node, self))      \
-            return false;                                           \
-            BEGIN_EXCEPTION_CHECK    \
-        DECODE(node, __VA_ARGS__);                                  \
-           END_EXCEPTION_CHECK                                                                          \
-    }}; \
+    #define SAM_OPTIONS(parent_class_type, class_type, ...)    namespace YAML { \
+    template<> \
+    struct convert< class_type > { \
+        static Node encode(const class_type &self) { \
+            return ENCODE(__VA_ARGS__); \
+        } \
+        static bool decode(const Node &node, class_type &self) {  \
+            if(! convert<parent_class_type>::decode(node, self))      \
+                return false;                                           \
+                BEGIN_EXCEPTION_CHECK    \
+                    DECODE(node, __VA_ARGS__);                                  \
+                END_EXCEPTION_CHECK                                                                          \
+        }}; }\
 
-#define SELF(attr) NodePair<decltype(self. attr)>{const_cast< decltype(self. attr) & >(self. attr),std::string(#attr)}
-#endif //SAM_RL_YAML_HELPER_H
+    #define SELF(attr) NodePair<decltype(self. attr)>{const_cast< decltype(self. attr) & >(self. attr),std::string(#attr)}
+
+}
+

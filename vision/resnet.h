@@ -6,7 +6,6 @@
 #define SAM_RL_TRADER_RESNET_H
 
 #include <torch/torch.h>
-#include "common/yaml_options.h"
 #include "common/common.h"
 
 namespace sam_dn{
@@ -461,12 +460,8 @@ namespace sam_dn{
     TORCH_MODULE(ResnetHolder);
 }
 
-namespace YAML{
-    using namespace sam_dn;
-    CONVERT_WITH_PARENT(BaseModuleOption, ResnetHolderImpl::Option, SELF(res_type), SELF(num_classes), SELF(act_fn),
-                        SELF(blocks), SELF(basic))
-}
 
-
+SAM_OPTIONS(BaseModuleOption, ResnetHolderImpl::Option, SELF(res_type), SELF(num_classes), SELF(act_fn),
+            SELF(blocks), SELF(basic))
 
 #endif //SAM_RL_TRADER_RESNET_H

@@ -2,13 +2,13 @@
 // Created by dewe on 11/11/21.
 //
 
+#include "string"
 #include "basic/fcnn.h"
 #include "vision/conv_net.h"
 #include "memory/recurrent_net.h"
 #include "basic/embedding.h"
 #include "basic/self_attention.h"
 #include "basic/entity_aware.h"
-#include "yaml_options.h"
 #include "wrappers/basic.h"
 #include "vision/residual_block.h"
 #include "vision/resnet.h"
@@ -117,7 +117,7 @@ namespace sam_dn{
 
                     sub_module["output"] = feature;
 
-                    auto type = try_get<std::string>(sub_module, "type"s);
+                    auto type = YAML::try_get<std::string>(sub_module, "type"s);
                     try {
                         auto shape_key = toString(sub_module["input"]);
                         auto input_shape = get_size(shape_key);
