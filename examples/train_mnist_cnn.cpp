@@ -4,15 +4,14 @@
 
 #define DEBUG_VISION
 
+#include "trainer/trainable.h"
 #include "vision/conv_net.h"
 #include "basic/fcnn.h"
-#include "common/builder.h"
+
 
 // Where to find the MNIST dataset.
 const char* kDataRoot = "examples/data/mnist";
 
-// The batch size for training.
-const int64_t kTrainBatchSize = 64;
 
 // The batch size for testing.
 const int64_t kTestBatchSize = 1000;
@@ -89,63 +88,52 @@ int main(){
 
     torch::manual_seed(1);
 
-    torch::DeviceType device_type = torch::kCPU;
-//    if (torch::cuda::is_available()) {
-//        std::cout << "CUDA available! Training on GPU." << std::endl;
-//        device_type = torch::kCUDA;
-//    } else {
-//        std::cout << "Training on CPU." << std::endl;
-//        device_type = torch::kCPU;
-//    }
-    torch::Device device(device_type);
+    TrainingOption trainingOption;
+    trainingOption.batch_size = 64;
+    trainingOption.shuffle = true;
+    trainingOption.use_multi_threading = true;
+    trainingOption.epochs = 5;
 
-    sam_dn::InputShapes shapes;
-    sam_dn::Builder modelbuilder;
-    auto modules = modelbuilder.compile("examples/model/mnist_resnet.yaml", shapes);
+    EvaluationOption evaluationOption;
+    evaluationOption.verbose = 2;
 
-    torch::nn::Sequential model = modules["mnist"];
+    CompileOption opt;
+    opt.loss = "mse";
+//    opt.optimizer = torch::optim::SGDOptions(0.01).momentum(0.5);
+    opt.optimizer = "sgd";
+    opt.metrics = {"accuracy", "mae"};
+//    opt.metrics.emplace_back( torch::nn::TopKCategoricalAccuracy<false>() );
 
-//    sam_dn::CNNOption cnn_opt;
-//    cnn_opt.activations = {"relu", "relu"};
-//    cnn_opt.filters = {10, 20};
-//    cnn_opt.kernels = {5, 5};
-//    cnn_opt.strides = {1, 1};
-//    cnn_opt.padding = {"valid", "valid"};
-//    cnn_opt.Input({1, 28, 28});
-//    sam_dn::CNN cnn(cnn_opt);
+    TrainableModel model("examples/model/mnist_resnet.yaml",
+                         "mnist",
+                         c10::kCUDA,
+                         true);
+
+    model.compile(opt);
+
+    model.fit(trainingOption);
+
+    model.evaluate(evaluationOption);
+
+//    auto train_dataset = torch::data::datasets::MNIST(kDataRoot)
+//            .map(torch::data::transforms::Normalize<>(0.1307, 0.3081))
+//            .map(torch::data::transforms::Stack<>());
+//    const size_t train_dataset_size = train_dataset.size().value();
+//    auto train_loader =
+//            torch::data::make_data_loader<torch::data::samplers::SequentialSampler>(
+//                    std::move(train_dataset), kTrainBatchSize);
 //
-//    sam_dn::FCNNOption opt;
-//    opt.dims = {50, 10};
-//    opt.act_fn = "relu";
-//    opt.Input( { torch::tensor(cnn->outputSize()).prod(0).item<long>() } );
+//    auto test_dataset = torch::data::datasets::MNIST(
+//            kDataRoot, torch::data::datasets::MNIST::Mode::kTest)
+//            .map(torch::data::transforms::Normalize<>(0.1307, 0.3081))
+//            .map(torch::data::transforms::Stack<>());
+//    const size_t test_dataset_size = test_dataset.size().value();
+//    auto test_loader =
+//            torch::data::make_data_loader(std::move(test_dataset), kTestBatchSize);
+//
+//    for (size_t epoch = 1; epoch <= kNumberOfEpochs; ++epoch) {
+//        train(epoch, model, device, *train_loader, optimizer, train_dataset_size);
+//        test(model, device, *test_loader, test_dataset_size);
+//    }
 
-//    model->push_back("feature_extractor", cnn);
-//    model->push_back("predictor", sam_dn::FCNN(sam_dn::FCNNOption(opt)));
-
-    model->to(device);
-    std::cout << *model << "\n";
-
-    auto train_dataset = torch::data::datasets::MNIST(kDataRoot)
-            .map(torch::data::transforms::Normalize<>(0.1307, 0.3081))
-            .map(torch::data::transforms::Stack<>());
-    const size_t train_dataset_size = train_dataset.size().value();
-    auto train_loader =
-            torch::data::make_data_loader<torch::data::samplers::SequentialSampler>(
-                    std::move(train_dataset), kTrainBatchSize);
-
-    auto test_dataset = torch::data::datasets::MNIST(
-            kDataRoot, torch::data::datasets::MNIST::Mode::kTest)
-            .map(torch::data::transforms::Normalize<>(0.1307, 0.3081))
-            .map(torch::data::transforms::Stack<>());
-    const size_t test_dataset_size = test_dataset.size().value();
-    auto test_loader =
-            torch::data::make_data_loader(std::move(test_dataset), kTestBatchSize);
-
-    torch::optim::SGD optimizer(
-            model->parameters(), torch::optim::SGDOptions(0.01).momentum(0.5));
-
-    for (size_t epoch = 1; epoch <= kNumberOfEpochs; ++epoch) {
-        train(epoch, model, device, *train_loader, optimizer, train_dataset_size);
-        test(model, device, *test_loader, test_dataset_size);
-    }
 }

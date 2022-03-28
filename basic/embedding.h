@@ -25,6 +25,30 @@ namespace sam_dn{
             this->m_BaseModel = register_module("embed", torch::nn::Embedding(opts));
             m_OutputSize = { opts.embedding_dim() };
         }
+
+//        void pretty_print(std::ostream& stream) const override{
+//            stream << "Embedding Layer(embed=10, embed_dim=11)";
+//
+//            auto params = this->parameters();
+//            size_t n_trainable{}, n_non_trainable{};
+//
+//            for(auto const& p: params){
+//                if(p.requires_grad()){
+//                    n_trainable += p.flatten().size(0);
+//                }else{
+//                    n_non_trainable += p.flatten().size(0);
+//                }
+//            }
+//            //this->m_OutputSize;
+//        }
+//
+//        TORCH_API friend std::ostream& operator<<(
+//                std::ostream& stream,
+//                const EmbeddingImpl& module) {
+//            stream << "Embedding Layer";
+//            return stream;
+//        }
+
     };
 
     TORCH_MODULE(Embedding);
