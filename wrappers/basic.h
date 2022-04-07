@@ -25,7 +25,7 @@ namespace sam_dn{
             std::transform(inputs.begin(), inputs.end(), input_tensors.begin(), [&x](auto const& in) {
                 return x->at(in);
             });
-            x->template insert_or_assign( this->m_Output, torch::concat(input_tensors, Axis1));
+            x->template insert_or_assign( this->m_Output, torch::cat(input_tensors, Axis1));
             return x;
         }
 
