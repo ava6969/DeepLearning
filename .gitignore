@@ -4,3 +4,5 @@
 /cmake-build-relwithdebinfo
 /examples/data
 /examples/model
+/tensorboard_logger/test
+CMakeUserPresets.json
