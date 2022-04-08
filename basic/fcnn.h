@@ -7,6 +7,7 @@
 
 #include "base.h"
 
+
 namespace sam_dn{
 
     struct FCNNOption : BaseModuleOption{
@@ -35,7 +36,6 @@ namespace sam_dn{
         inline torch::Tensor forward(const torch::Tensor &x) noexcept override {
             return m_BaseModel->forward(x.reshape({-1, opt.dims[0]}));
         }
-
     };
     TORCH_MODULE(FCNN);
 }

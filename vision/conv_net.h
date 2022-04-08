@@ -95,7 +95,6 @@ namespace sam_dn {
         CNNImpl()=default;
 
         explicit CNNImpl(CNNOption const& opt);
-
     };
 
     struct CNNTransposeImpl : public ConvNetImpl<torch::nn::ConvTranspose2d, torch::nn::ConvTranspose2dOptions>  {
