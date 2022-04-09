@@ -98,8 +98,9 @@ namespace sam_dn{
         struct Option : BaseModuleOption{
             int64_t input_sz{};
             int64_t axis{};
-            void Input(const std::vector<int64_t> & x) override{
+            BaseModuleOption& Input(const std::vector<int64_t> & x) override{
                 input_sz = x[axis];
+                return *this;
             }
         };
 

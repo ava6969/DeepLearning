@@ -29,7 +29,16 @@ namespace sam_dn {
         std::vector <std::string> padding{}, activations{};
         bool flatten_output = {false};
 
-        void Input(std::vector<int64_t> const& x) override;
+        CNNOption()=default;
+        CNNOption(std::vector<int>  filters):filters(std::move( filters)){}
+
+        CNNOption& setKernels(std::vector<int> const& x) { kernels = x; return *this; }
+        CNNOption& setStrides(std::vector<int> const& _strides) { strides = _strides; return *this; }
+        CNNOption& setPaddings(std::vector <std::string> const& p) { padding = p; return *this; }
+        CNNOption& setActivations(std::vector <std::string> const& a) { activations = a; return *this; }
+        CNNOption& flattenOut(bool _flatten_out) { flatten_output = _flatten_out; return *this; }
+
+        BaseModuleOption& Input(std::vector<int64_t> const& x) override;
 
         [[nodiscard]] auto InputShape() const { return inputShape; }
 
@@ -95,6 +104,7 @@ namespace sam_dn {
         CNNImpl()=default;
 
         explicit CNNImpl(CNNOption const& opt);
+        explicit CNNImpl(BaseModuleOption& opt):CNNImpl( dynamic_cast<CNNOption&>(opt) ) {}
     };
 
     struct CNNTransposeImpl : public ConvNetImpl<torch::nn::ConvTranspose2d, torch::nn::ConvTranspose2dOptions>  {
@@ -105,8 +115,6 @@ namespace sam_dn {
     TORCH_MODULE(CNNTranspose);
 
 }
-
-//#include "conv_net.cpp"
 
 SAM_OPTIONS2(Conv2DInput, SELF(width), SELF(height), SELF(channel))
 
