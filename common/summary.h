@@ -26,6 +26,7 @@ namespace sam_dn {
 
             // Write out shape dimensions
             if (params.size() > 0) {
+                shape_str += "[";
                 auto param = params[0];
                 auto param_size_count = param.sizes().size();
                 for (int i = param_size_count - 2; i >= 0; i--) {
@@ -36,6 +37,7 @@ namespace sam_dn {
                         shape_str += ", ";
                     }
                 }
+                shape_str += "]";
             }
             else {
                 layer_param_count = 0;
