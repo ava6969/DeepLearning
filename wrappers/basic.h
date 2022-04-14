@@ -10,13 +10,13 @@
 
 namespace sam_dn{
 
-    template<int64_t Axis1=-1>
-    struct ConcatAtAxisImpl : public ModuleWithSizeInfoImpl{
+    template<bool cat, int64_t Axis1=-1>
+    struct JoinAtAxisImpl : public ModuleWithSizeInfoImpl{
         std::vector<std::string> inputs;
         std::vector<torch::Tensor> input_tensors;
-        ConcatAtAxisImpl()=default;
+        JoinAtAxisImpl()=default;
 
-        explicit ConcatAtAxisImpl(BaseModuleOption opt): ModuleWithSizeInfoImpl(opt){
+        explicit JoinAtAxisImpl(BaseModuleOption opt): ModuleWithSizeInfoImpl(opt){
             boost::split(inputs, this->m_Input, boost::is_any_of(";"));
             input_tensors.resize(inputs.size());
         }
@@ -25,7 +25,11 @@ namespace sam_dn{
             std::transform(inputs.begin(), inputs.end(), input_tensors.begin(), [&x](auto const& in) {
                 return x->at(in);
             });
-            x->template insert_or_assign( this->m_Output, torch::cat(input_tensors, Axis1));
+            if constexpr(cat)
+                x->template insert_or_assign( this->m_Output, torch::cat(input_tensors, Axis1));
+            else
+                x->template insert_or_assign( this->m_Output, torch::vstack(input_tensors));
+
             return x;
         }
 
@@ -41,6 +45,15 @@ namespace sam_dn{
         explicit SqueezeAtAxisImpl(BaseModuleOption opt): ModuleWithSizeInfoImpl(opt){}
         inline torch::Tensor forward(const torch::Tensor &x) noexcept final{
             return torch::squeeze(x, Axis1);
+        }
+    };
+
+    template<int64_t _from, int64_t _to=-1>
+    struct FlattenImpl : ModuleWithSizeInfoImpl{
+        FlattenImpl()=default;
+        explicit FlattenImpl(BaseModuleOption opt): ModuleWithSizeInfoImpl(opt){}
+        inline torch::Tensor forward(const torch::Tensor &x) noexcept final{
+            return torch::flatten(x, _from, _to);
         }
     };
 
@@ -209,11 +222,20 @@ namespace sam_dn{
     using Transpose12Impl = TransposeImpl<1, 2>;
     using Transpose23Impl = TransposeImpl<2, 3>;
 
-    using ConcatEndImpl = ConcatAtAxisImpl<>;
-    using Concat0Impl = ConcatAtAxisImpl<0>;
-    using Concat1Impl = ConcatAtAxisImpl<1>;
-    using Concat2Impl = ConcatAtAxisImpl<2>;
-    using Concat3Impl = ConcatAtAxisImpl<3>;
+    using ConcatEndImpl = JoinAtAxisImpl<true>;
+    using Concat0Impl = JoinAtAxisImpl<true, 0>;
+    using Concat1Impl = JoinAtAxisImpl<true, 1>;
+    using Concat2Impl = JoinAtAxisImpl<true, 2>;
+    using Concat3Impl = JoinAtAxisImpl<true, 3>;
+
+    using StackEndImpl = JoinAtAxisImpl<true>;
+    using Stack0Impl = JoinAtAxisImpl<false, 0>;
+    using Stack1Impl = JoinAtAxisImpl<false, 1>;
+    using Stack2Impl = JoinAtAxisImpl<false, 2>;
+    using Stack3Impl = JoinAtAxisImpl<false, 3>;
+
+    using FlattenEndImpl = FlattenImpl<0, -1>;
+    using Flatten01Impl = FlattenImpl<0, 1>;
 
     TORCH_MODULE(ConditionalSqueezeAtAxis0);
     TORCH_MODULE(ConditionalSqueezeAtAxis1);
@@ -232,6 +254,15 @@ namespace sam_dn{
     TORCH_MODULE(Concat1);
     TORCH_MODULE(Concat2);
     TORCH_MODULE(Concat3);
+
+    TORCH_MODULE(FlattenEnd);
+    TORCH_MODULE(Flatten01);
+
+    TORCH_MODULE(StackEnd);
+    TORCH_MODULE(Stack0);
+    TORCH_MODULE(Stack1);
+    TORCH_MODULE(Stack2);
+    TORCH_MODULE(Stack3);
 
 }
 

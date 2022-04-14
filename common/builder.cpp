@@ -69,6 +69,15 @@ namespace sam_dn{
         registerCallBack<sam_dn::Concat1Impl>("concat1");
         registerCallBack<sam_dn::Concat2Impl>("concat2");
         registerCallBack<sam_dn::Concat3Impl>("concat3");
+
+        registerCallBack<sam_dn::StackEndImpl>("stack_end");
+        registerCallBack<sam_dn::Stack0Impl>("stack0");
+        registerCallBack<sam_dn::Stack1Impl>("stack1");
+        registerCallBack<sam_dn::Stack2Impl>("stack2");
+        registerCallBack<sam_dn::Stack3Impl>("stack3");
+
+        registerCallBack<sam_dn::FlattenEndImpl>("flatten_end");
+        registerCallBack<sam_dn::Flatten01Impl>("flatten01");
     }
 
     SequentialMap Builder::compile(const YAML::Node & root, InputShapes & shapeMap) {

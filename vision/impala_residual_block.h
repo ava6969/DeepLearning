@@ -49,7 +49,7 @@ namespace sam_dn{
             bool flatten_out{false};
         };
 
-        explicit ImpalaResnetImpl(Option opt);
+        explicit ImpalaResnetImpl(ImpalaResnetImpl::Option opt);
     };
 
     TORCH_MODULE(ImpalaResidualBlock);
