@@ -12,7 +12,6 @@ namespace sam_dn{
     class Conv2DPositionEncodeImpl: public ModuleWithSizeInfoImpl{
 
     public:
-        Conv2DPositionEncodeImpl()=default;
 
         explicit Conv2DPositionEncodeImpl(BaseModuleOption opt): ModuleWithSizeInfoImpl(opt){
             auto in = opt.dict_opt[opt.input];
