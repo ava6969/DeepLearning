@@ -18,9 +18,10 @@ namespace sam_dn{
         std::optional<bool> max_pool{};
         int64_t n_features{}, features_size{};
 
-        void Input(std::vector<int64_t> const& x) override {
+        BaseModuleOption& Input(std::vector<int64_t> const& x) override {
             n_features = x.at(0);
             features_size = x.at(1);
+            return *this;
         }
     };
 

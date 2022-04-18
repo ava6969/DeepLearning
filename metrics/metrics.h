@@ -40,7 +40,7 @@ namespace torch::nn{
         }
 
         virtual torch::Tensor result(){
-
+            return {};
         }
 
         void resetState(){

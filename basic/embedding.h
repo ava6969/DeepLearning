@@ -12,8 +12,9 @@ namespace sam_dn{
     struct EmbeddingOption: BaseModuleOption{
         int64_t embed_dim{}, embed_num{};
 
-        void Input(std::vector<int64_t> const& x) override {
+        BaseModuleOption& Input(std::vector<int64_t> const& x) override {
             embed_num = x.at(0);
+            return *this;
         }
     };
 

@@ -26,9 +26,10 @@ namespace sam_dn{
         std::string device;
         std::string type;
 
-        void Input(std::vector<int64_t> const& rnn_in_size) override{
+        BaseModuleOption& Input(std::vector<int64_t> const& rnn_in_size) override{
             assert(rnn_in_size.size() == 1);
             input_size = rnn_in_size[0];
+            return *this;
         }
 
         RecurrentNetOption set_type(std::string const& _type){

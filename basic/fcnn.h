@@ -5,6 +5,8 @@
 #ifndef SAMFRAMEWORK_FCNN_H
 #define SAMFRAMEWORK_FCNN_H
 
+#include <utility>
+
 #include "base.h"
 
 
@@ -14,8 +16,12 @@ namespace sam_dn{
         std::vector<int64_t> dims;
         std::string act_fn{"relu"};
 
-        void Input(std::vector<int64_t> const& x) override {
+        FCNNOption()=default;
+        FCNNOption( std::vector<int64_t> const& dims, std::string act_fn="relu"):dims( dims), act_fn(std::move(act_fn)){}
+
+        BaseModuleOption& Input(std::vector<int64_t> const& x) override {
             dims.insert(dims.begin(), x.begin(), x.end());
+            return *this;
         }
     };
 
@@ -24,6 +30,7 @@ namespace sam_dn{
     public:
         FCNNImpl()=default;
 
+        explicit FCNNImpl(BaseModuleOption& opt):FCNNImpl( dynamic_cast<FCNNOption&>(opt) ) {}
         explicit FCNNImpl(FCNNOption const& option);
 
         explicit FCNNImpl(int64_t input, int64_t output,

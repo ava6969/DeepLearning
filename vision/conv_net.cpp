@@ -8,7 +8,7 @@
 
 namespace sam_dn{
 
-    void CNNOption::Input(std::vector<int64_t> const& x) {
+    BaseModuleOption& CNNOption::Input(std::vector<int64_t> const& x) {
         switch (x.size()) {
             case 1:
                 inputShape = Conv2DInput{1, 1, static_cast<int>(x[0])};
@@ -22,6 +22,7 @@ namespace sam_dn{
             default:
                 throw std::runtime_error("Conv2d input size requires 1 <= Observation Size <= 3");
         }
+        return *this;
     }
 
     template<>

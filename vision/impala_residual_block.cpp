@@ -59,7 +59,7 @@ namespace sam_dn{
         return residualBlock2(residualBlock1(max_pool(out)));
     }
 
-    ImpalaResnetImpl::ImpalaResnetImpl(Option opt): BaseModuleImpl<>(opt) {
+    ImpalaResnetImpl::ImpalaResnetImpl(ImpalaResnetImpl::Option opt): BaseModuleImpl<>(opt) {
         int i = 0;
         Conv2DInput inp = {static_cast<int>(opt.dict_opt[m_Input][1]),
                            static_cast<int>( opt.dict_opt[m_Input][2]),

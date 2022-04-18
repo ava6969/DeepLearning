@@ -20,7 +20,7 @@ namespace sam_dn{
         bool new_bias{};
         std::unordered_map<std::string, std::vector<int64_t>> dict_opt;
 
-        virtual void Input(std::vector<int64_t> const&) {}
+        virtual BaseModuleOption& Input(std::vector<int64_t> const&) { return *this; }
     };
 
     struct ModuleWithSizeInfoImpl :  torch::nn::Module{

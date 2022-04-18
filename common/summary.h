@@ -2,18 +2,19 @@
 #include <ATen/ATen.h>
 #include <torch/csrc/autograd/variable.h>
 #include <torch/csrc/autograd/function.h>
-#include <tabulate/table.hpp>
 #include <iostream>
 #include <vector>
+#include <tabulate/table.hpp>
 
-const auto BYTE_COUNT = 1024;
-const auto LABEL_COUNT = 4;
-static const char* BYTE_LABELS[] = { "B", "MB", "GB", "TB" };
+constexpr auto BYTE_COUNT = 1024;
+constexpr auto LABEL_COUNT = 4;
+static const char *BYTE_LABELS[] = {"B", "MB", "GB", "TB"};
 
-namespace sam_dn {
+namespace sam_dn
+{
 
     /// Prints out the properties of each layer.
-    void print_summary(torch::nn::SequentialImpl &sequential, std::ostream& out) {
+    inline static void print_summary(torch::nn::SequentialImpl &sequential, std::ostream& out) {
         tabulate::Table table;
         table.add_row({"Options", "Output Shape", "Param #"});
 

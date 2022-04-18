@@ -88,6 +88,15 @@ int main(){
 
     torch::manual_seed(1);
 
+    auto train_dataset = torch::data::datasets::MNIST(kDataRoot)
+            .map(torch::data::transforms::Normalize<>(0.1307, 0.3081))
+            .map(torch::data::transforms::Stack<>());
+
+    auto valid_dataset = torch::data::datasets::MNIST(
+            kDataRoot, torch::data::datasets::MNIST::Mode::kTest)
+            .map(torch::data::transforms::Normalize<>(0.1307, 0.3081))
+            .map(torch::data::transforms::Stack<>());
+
     TrainingOption trainingOption;
     trainingOption.batch_size = 64;
     trainingOption.shuffle = true;
@@ -101,7 +110,7 @@ int main(){
     opt.loss = "mse";
 //    opt.optimizer = torch::optim::SGDOptions(0.01).momentum(0.5);
     opt.optimizer = "sgd";
-    opt.metrics = {"accuracy", "mae"};
+//    opt.metrics = {"accuracy", "mae"};
 //    opt.metrics.emplace_back( torch::nn::TopKCategoricalAccuracy<false>() );
 
     TrainableModel model("examples/model/mnist_resnet.yaml",
@@ -109,24 +118,22 @@ int main(){
                          c10::kCUDA,
                          true);
 
+
     model.compile(opt);
 
-    model.fit(trainingOption);
+    model.fit(trainingOption,
+              train_dataset,
+              std::make_optional(valid_dataset));
 
     model.evaluate(evaluationOption);
 
-//    auto train_dataset = torch::data::datasets::MNIST(kDataRoot)
-//            .map(torch::data::transforms::Normalize<>(0.1307, 0.3081))
-//            .map(torch::data::transforms::Stack<>());
+
 //    const size_t train_dataset_size = train_dataset.size().value();
 //    auto train_loader =
 //            torch::data::make_data_loader<torch::data::samplers::SequentialSampler>(
 //                    std::move(train_dataset), kTrainBatchSize);
 //
-//    auto test_dataset = torch::data::datasets::MNIST(
-//            kDataRoot, torch::data::datasets::MNIST::Mode::kTest)
-//            .map(torch::data::transforms::Normalize<>(0.1307, 0.3081))
-//            .map(torch::data::transforms::Stack<>());
+
 //    const size_t test_dataset_size = test_dataset.size().value();
 //    auto test_loader =
 //            torch::data::make_data_loader(std::move(test_dataset), kTestBatchSize);

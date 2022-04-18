@@ -1,0 +1,8 @@
+file(GLOB Examples *.cpp)
+foreach(SRC_FILE IN LISTS Examples)
+    string(REPLACE .cpp "" executable_name ${SRC_FILE})
+    string(REPLACE ${CMAKE_SOURCE_DIR}/examples/ "" executable_name ${executable_name})
+    add_executable(${executable_name} ${SRC_FILE} )
+    target_link_libraries(${executable_name} PRIVATE ${PROJECT_NAME} ${TORCH_LIBRARIES} yaml-cpp tensorboard_logger )
+    target_include_directories( ${executable_name} PRIVATE ../ ${SAM_PATH}/tensorboard_logger/include ${SAM_PATH}/tensorboard_logger)
+endforeach()
