@@ -6,6 +6,8 @@
 #include "common/summary.h"
 #include "basic/fcnn.h"
 #include "vision/conv_net.h"
+#include "vision/cnn_vae.h"
+#include "vision/impala_residual_block.h"
 
 int main()
 {
@@ -18,15 +20,16 @@ int main()
     fcnn_opt.bias_init_type = "constant";
 
     sam_dn::CNNOption conv_net_opt;
-    conv_net_opt.filters = {6, 2, 3};
-    conv_net_opt.kernels = {3, 2, 6};
+    conv_net_opt.filters = {3, 3, 3};
+    conv_net_opt.kernels = {3, 3, 3};
     conv_net_opt.weight_init_type = "orthogonal";
     conv_net_opt.weight_init_param = std::sqrt(2.f);
     conv_net_opt.bias_init_param = 1;
     conv_net_opt.bias_init_type = "constant";
+
     torch::nn::Sequential sequential(
         // Libtorch layers
-        torch::nn::Conv2d(torch::nn::Conv2dOptions(5, 8, { 3, 4 })),
+        torch::nn::Conv2d(torch::nn::Conv2dOptions(5, 8, {3, 4})),
         torch::nn::Flatten(),
         torch::nn::Linear(torch::nn::LinearOptions(8, 3)),
         torch::nn::ReLU(),
@@ -34,6 +37,16 @@ int main()
         torch::nn::Sigmoid(),
         // Custom layers
         FCNNImpl(fcnn_opt),
+        // These layers have pretty print methods defined,
+        // but I can't instantiate them for some reason
+        // sam_rl::CnnVaeImpl(
+        //     Conv2DInput{3, 3, 3},
+        //     3,
+        //     5,
+        //     conv_net_opt,
+        //     conv_net_opt
+        // ),
+        // CNNImpl(conv_net_opt),
     );
     sam_dn::print_summary(*sequential.ptr(), std::cout);
 }

@@ -29,6 +29,13 @@ namespace sam_dn{
             return x;
         }
 
+        void pretty_print(std::ostream& stream) const override {
+            stream  << "sam_dn::ImpalaResidualBlock"
+                    << "("
+                    << "batch_norm=" << this->batch_norm
+                    << ")";
+        }
+
     private:
         ResidualBlock residualBlock1{nullptr};
         ResidualBlock residualBlock2{nullptr};
