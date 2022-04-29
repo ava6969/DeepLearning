@@ -62,6 +62,10 @@ namespace sam_dn{
     template<typename Net, typename Option>
     void ConvNetImpl<Net, Option>::build(CNNOption opt) {
 
+        if( opt.InputShape().channel == 0){
+            opt.Input( opt.dict_opt.at(m_Input));
+        }
+
         if( (opt.filters.size() != opt.kernels.size()) &&
             (opt.kernels.size() != opt.strides.size()) &&
             (opt.strides.size() != opt.activations.size())){
