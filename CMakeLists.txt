@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.17)
 
-set(SAM_PATH $ENV{HOME}/sam CACHE STRING "Path to SAM ROOT DIR")
+set(SAM_PATH $ENV{HOME}/sam_old CACHE STRING "Path to SAM ROOT DIR")
 set(Torch_DIR $ENV{HOME}/libtorch/share/cmake/Torch CACHE STRING "Path to Torch ROOT DIR")
 set(CMAKE_TOOLCHAIN_FILE $ENV{HOME}/vcpkg/scripts/buildsystems/vcpkg.cmake CACHE STRING "Vcpkg toolchain file")
 option(BUILD_EXAMPLES OFF)
