@@ -73,7 +73,7 @@ namespace sam_dn{
             auto logit = torch::matmul(query, key) / logit_scale; // (bs, T, heads, NE, NE)
             auto soft_max = torch::softmax(logit, -1);
 
-            auto att_sum = torch::matmul(soft_max, _value).permute({0, 2, 1, 3}); // ( B, n_output_entities, heads, features)
+            auto att_sum = torch::matmul(soft_max, _value).permute({0, 2, 1, 3}); // ( B, n_output_entities, heads, m_State)
             att_sum = att_sum.reshape({-1, this->opt.n_features, this->opt.n_embed});
             auto x = inp + post_a_mlp(att_sum);
             x = post_norm ? post_norm.value()(x) : x;
