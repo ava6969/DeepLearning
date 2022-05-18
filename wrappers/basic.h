@@ -19,6 +19,9 @@ namespace sam_dn{
         explicit JoinAtAxisImpl(BaseModuleOption opt): ModuleWithSizeInfoImpl(opt){
             boost::split(inputs, this->m_Input, boost::is_any_of(";"));
             input_tensors.resize(inputs.size());
+            m_OutputSize = { std::accumulate(inputs.begin(), inputs.end(), 0L, [&opt](auto accum, auto k){
+                return accum + opt.dict_opt[k][0];
+            }) };
         }
 
         inline TensorDict * forwardDict(TensorDict *x)  noexcept final {
