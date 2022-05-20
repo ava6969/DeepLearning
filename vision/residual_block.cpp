@@ -18,12 +18,15 @@ namespace sam_dn{
         if(_opt.flatten_output)
             m_OutputSize = {  _opt.filters[0] *  _opt.InputShape().height * _opt.InputShape().width  };
         else
-            m_OutputSize = m_OutputSize = {_opt.filters[0], _opt.InputShape().height,  _opt.InputShape().width};
+            m_OutputSize = {_opt.filters[0], _opt.InputShape().height,  _opt.InputShape().width};
 
         flatten_out = _opt.flatten_output;
+
         initializeWeightBias(conv1, _opt);
+        initializeWeightBias(conv2, _opt);
+
         if(not _opt.activations.empty())
-            relu_out = _opt.activations[0] == "relu";
+            relu_out = (_opt.activations[0] == "relu");
 
     }
 }
