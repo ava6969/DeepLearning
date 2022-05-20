@@ -10,29 +10,59 @@
 
 namespace sam_dn{
 
-    template<bool cat, int64_t Axis1=-1>
+
+    struct AxisOption : BaseModuleOption{
+        std::vector<int64_t> axis;
+    };
+
+    enum class Joiner{
+        Cat,
+        Vstack,
+        Stack
+    };
+
+    template<Joiner joiner>
     struct JoinAtAxisImpl : public ModuleWithSizeInfoImpl{
         std::vector<std::string> inputs;
         std::vector<torch::Tensor> input_tensors;
+        int64_t Axis1{};
         JoinAtAxisImpl()=default;
 
-        explicit JoinAtAxisImpl(BaseModuleOption opt): ModuleWithSizeInfoImpl(opt){
+        explicit JoinAtAxisImpl(AxisOption opt): ModuleWithSizeInfoImpl(opt){
             boost::split(inputs, this->m_Input, boost::is_any_of(";"));
             input_tensors.resize(inputs.size());
-            m_OutputSize = { std::accumulate(inputs.begin(), inputs.end(), 0L, [&opt](auto accum, auto k){
-                return accum + opt.dict_opt[k][0];
-            }) };
+
+            if constexpr(joiner != Joiner::Vstack )
+                Axis1 = opt.axis[0];
+            if constexpr( joiner == Joiner::Cat )
+                m_OutputSize = { std::accumulate(inputs.begin(), inputs.end(), 0L, [&opt](auto accum, auto k){
+                    return accum + opt.dict_opt[k][0];
+                }) };
+            else{
+                auto front = opt.dict_opt[inputs[0]];
+                if( std::all_of(inputs.begin(), inputs.end(), [&](auto const& k){
+                    return opt.dict_opt[k] == front;
+                })){
+                    m_OutputSize = front;
+                }else{
+                    throw std::runtime_error("JoinAtAxisImplError: Cannot stack dims of unequal shape");
+                }
+            }
         }
 
         inline TensorDict * forwardDict(TensorDict *x)  noexcept final {
             std::transform(inputs.begin(), inputs.end(), input_tensors.begin(), [&x](auto const& in) {
                 return x->at(in);
             });
-            if constexpr(cat)
+            if constexpr(joiner == Joiner::Cat )
                 x->template insert_or_assign( this->m_Output, torch::cat(input_tensors, Axis1));
-            else
-                x->template insert_or_assign( this->m_Output, torch::vstack(input_tensors));
-
+            else{
+                if (joiner == Joiner::Vstack ){
+                    x->template insert_or_assign( this->m_Output, torch::vstack(input_tensors));
+                }else{
+                    x->template insert_or_assign( this->m_Output, torch::stack(input_tensors, Axis1));
+                }
+            }
             return x;
         }
 
@@ -42,37 +72,63 @@ namespace sam_dn{
         }
     };
 
-    template<int64_t Axis1>
     struct SqueezeAtAxisImpl : ModuleWithSizeInfoImpl{
+        int64_t Axis1{};
         SqueezeAtAxisImpl()=default;
-        explicit SqueezeAtAxisImpl(BaseModuleOption opt): ModuleWithSizeInfoImpl(opt){}
+        explicit SqueezeAtAxisImpl(AxisOption opt): ModuleWithSizeInfoImpl(opt),Axis1(opt.axis[0]) {}
         inline torch::Tensor forward(const torch::Tensor &x) noexcept final{
             return torch::squeeze(x, Axis1);
         }
     };
 
-    template<int64_t _from, int64_t _to=-1>
+    struct SplitAndStackImpl : ModuleWithSizeInfoImpl{
+        int64_t splitAxis{}, stackAxis{}, splitSize{};
+
+        struct Option: BaseModuleOption{
+            int64_t split_axis{}, stack_axis{}, split_size{};
+        };
+
+        SplitAndStackImpl()=default;
+
+        explicit SplitAndStackImpl(Option opt): ModuleWithSizeInfoImpl(opt),
+                                                    splitAxis(opt.split_axis),
+                                                    stackAxis(opt.stack_axis),
+                                                    splitSize(opt.split_size){
+            LOG(WARNING) << "SplitAndStackImpl output size cannot be correctly calculated\n";
+        }
+
+        inline torch::Tensor forward(const torch::Tensor &x) noexcept final{
+            return torch::stack( torch::tensor_split(x, splitSize, splitAxis) , stackAxis );
+        }
+    };
+
     struct FlattenImpl : ModuleWithSizeInfoImpl{
+        int64_t _from{}, _to{};
         FlattenImpl()=default;
-        explicit FlattenImpl(BaseModuleOption opt): ModuleWithSizeInfoImpl(opt){}
+        explicit FlattenImpl(AxisOption opt): ModuleWithSizeInfoImpl(opt),
+                                              _from(opt.axis[0]),
+                                              _to(opt.axis[1]){}
+
         inline torch::Tensor forward(const torch::Tensor &x) noexcept final{
             return torch::flatten(x, _from, _to);
         }
     };
 
-    template<int64_t Axis1>
     struct UnSqueezeAtAxisImpl : ModuleWithSizeInfoImpl{
+        int64_t Axis1{};
         UnSqueezeAtAxisImpl()=default;
-        explicit UnSqueezeAtAxisImpl(BaseModuleOption opt): ModuleWithSizeInfoImpl(opt){}
+        explicit UnSqueezeAtAxisImpl(AxisOption opt): ModuleWithSizeInfoImpl(opt),Axis1(opt.axis[0]) {}
         inline torch::Tensor forward(const torch::Tensor &x) noexcept final{
             return torch::unsqueeze(x, Axis1);
         }
     };
 
-    template<int64_t Axis1, int64_t Axis2>
     struct TransposeImpl : ModuleWithSizeInfoImpl{
+        int64_t Axis1{}, Axis2{};
         TransposeImpl()=default;
-        explicit TransposeImpl(BaseModuleOption opt): ModuleWithSizeInfoImpl(opt){}
+        explicit TransposeImpl(AxisOption opt): ModuleWithSizeInfoImpl(opt),
+        Axis1(opt.axis[0]),
+        Axis2(opt.axis[1]) {}
         inline torch::Tensor forward(const torch::Tensor &x) noexcept final {
             return torch::transpose(x, Axis1, Axis2);
         }
@@ -80,32 +136,25 @@ namespace sam_dn{
 
     template<class ImplType>
     struct ConditionalImpl : ModuleWithSizeInfoImpl{
-
+        AxisOption _opt;
         std::shared_ptr<ImplType> impl = nullptr;
-        bool (*condition) (torch::Tensor const&);
+        bool (*condition) (torch::Tensor const&, AxisOption const&);
 
-        explicit ConditionalImpl(bool (*condition) (torch::Tensor const&) ):condition(condition){}
-        explicit ConditionalImpl(BaseModuleOption opt,
-                                 bool (*condition) (torch::Tensor const&) ):ModuleWithSizeInfoImpl(opt),
-                                 condition(condition){}
+        explicit ConditionalImpl(AxisOption opt,
+                                 bool (*condition) (torch::Tensor const&, AxisOption const&) ):ModuleWithSizeInfoImpl(opt),
+                                 condition(condition), _opt(opt){}
 
         inline torch::Tensor forward(const torch::Tensor &x) noexcept override {
-            return condition(x) ? impl->forward(x) : x;
+            return condition(x, _opt) ? impl->forward(x) : x;
         }
     };
 
-    template<int64_t Axis, int64_t Dim>
-    struct ExpandIfDimEqualImpl : ConditionalImpl< UnSqueezeAtAxisImpl<Axis> >{
+    struct ExpandIfDimEqualImpl : ConditionalImpl< UnSqueezeAtAxisImpl >{
 
-        explicit ExpandIfDimEqualImpl(BaseModuleOption opt):
-        ConditionalImpl< UnSqueezeAtAxisImpl<Axis> >(opt, [](torch::Tensor const& x) -> bool {
-            return x.dim() == Dim;
+        explicit ExpandIfDimEqualImpl(AxisOption opt):
+        ConditionalImpl< UnSqueezeAtAxisImpl >(opt, [](torch::Tensor const& x, AxisOption const& _opt) -> bool {
+            return x.dim() == _opt.axis[1];
         }){}
-
-        explicit ExpandIfDimEqualImpl():ConditionalImpl< UnSqueezeAtAxisImpl<Axis> >([](torch::Tensor const& x) -> bool {
-            return x.dim() == Dim;
-        }){
-        }
     };
 
     struct LayerNorm1dImpl: public ModuleWithSizeInfoImpl{
@@ -209,67 +258,28 @@ namespace sam_dn{
     TORCH_MODULE(LayerNorm1d);
     TORCH_MODULE(Dropout);
     TORCH_MODULE(MaxPool2D);
-
-    using ConditionalSqueezeAtAxis0Impl = ConditionalImpl<SqueezeAtAxisImpl<0>>;
-    using ConditionalSqueezeAtAxis1Impl = ConditionalImpl<SqueezeAtAxisImpl<1>>;
-    using ConditionalSqueezeAtAxis2Impl = ConditionalImpl<SqueezeAtAxisImpl<2>>;
-    using ConditionalUnSqueezeAtAxis0Impl = ConditionalImpl<UnSqueezeAtAxisImpl<0>>;
-    using ConditionalUnSqueezeAtAxis1Impl = ConditionalImpl<UnSqueezeAtAxisImpl<1>>;
-    using ConditionalUnSqueezeAtAxis2Impl = ConditionalImpl<UnSqueezeAtAxisImpl<2>>;
-
-    using ExpandAtAxis0IfDimEqual1Impl = ExpandIfDimEqualImpl<0, 1>;
-    using ExpandAtAxis0IfDimEqual2Impl = ExpandIfDimEqualImpl<0, 2>;
-    using ExpandAtAxis0IfDimEqual3Impl = ExpandIfDimEqualImpl<0, 3>;
-
-    using Transpose01Impl = TransposeImpl<0, 1>;
-    using Transpose12Impl = TransposeImpl<1, 2>;
-    using Transpose23Impl = TransposeImpl<2, 3>;
-
-    using ConcatEndImpl = JoinAtAxisImpl<true>;
-    using Concat0Impl = JoinAtAxisImpl<true, 0>;
-    using Concat1Impl = JoinAtAxisImpl<true, 1>;
-    using Concat2Impl = JoinAtAxisImpl<true, 2>;
-    using Concat3Impl = JoinAtAxisImpl<true, 3>;
-
-    using StackEndImpl = JoinAtAxisImpl<true>;
-    using Stack0Impl = JoinAtAxisImpl<false, 0>;
-    using Stack1Impl = JoinAtAxisImpl<false, 1>;
-    using Stack2Impl = JoinAtAxisImpl<false, 2>;
-    using Stack3Impl = JoinAtAxisImpl<false, 3>;
-
-    using FlattenEndImpl = FlattenImpl<0, -1>;
-    using Flatten01Impl = FlattenImpl<0, 1>;
-
-    TORCH_MODULE(ConditionalSqueezeAtAxis0);
-    TORCH_MODULE(ConditionalSqueezeAtAxis1);
-    TORCH_MODULE(ConditionalUnSqueezeAtAxis0);
-    TORCH_MODULE(ConditionalUnSqueezeAtAxis1);
-    TORCH_MODULE(ExpandAtAxis0IfDimEqual1);
-    TORCH_MODULE(ExpandAtAxis0IfDimEqual2);
-    TORCH_MODULE(ExpandAtAxis0IfDimEqual3);
-
-    TORCH_MODULE(Transpose01);
-    TORCH_MODULE(Transpose12);
-    TORCH_MODULE(Transpose23);
-
-    TORCH_MODULE(ConcatEnd);
-    TORCH_MODULE(Concat0);
-    TORCH_MODULE(Concat1);
-    TORCH_MODULE(Concat2);
-    TORCH_MODULE(Concat3);
-
-    TORCH_MODULE(FlattenEnd);
-    TORCH_MODULE(Flatten01);
-
-    TORCH_MODULE(StackEnd);
-    TORCH_MODULE(Stack0);
-    TORCH_MODULE(Stack1);
-    TORCH_MODULE(Stack2);
-    TORCH_MODULE(Stack3);
+    TORCH_MODULE(ExpandIfDimEqual);
+    TORCH_MODULE(Flatten);
+    TORCH_MODULE(SplitAndStack);
+    TORCH_MODULE_IMPL(Stack, JoinAtAxisImpl<Joiner::Stack>);
+    TORCH_MODULE_IMPL(Concat, JoinAtAxisImpl<Joiner::Cat>);
+    TORCH_MODULE_IMPL(Vstack, JoinAtAxisImpl<Joiner::Vstack>);
+    TORCH_MODULE(SqueezeAtAxis);
+    TORCH_MODULE(Transpose);
 
 }
 
+//namespace YAML {
+//    template<> struct convert<sam_dn::AxisOption> {
+//        static bool decode(YAML::Node &x, sam_dn::AxisOption &out) {
+//            out.axis = x["axis"].as<std::vector<int64_t>>();
+//            return true;
+//        }
+//    };
+//}
+
 SAM_OPTIONS(BaseModuleOption, LayerNorm1dImpl::Option, SELF(axis));
 SAM_OPTIONS(BaseModuleOption, DropoutImpl::Option, SELF(prob));
-
+SAM_OPTIONS(BaseModuleOption, AxisOption, SELF(axis));
+SAM_OPTIONS(BaseModuleOption, SplitAndStackImpl::Option, SELF(split_size), SELF(stack_axis), SELF(split_axis));
 #endif //DEEP_NETWORKS_BASIC_H

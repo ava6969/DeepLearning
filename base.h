@@ -33,7 +33,7 @@ namespace sam_dn{
         explicit ModuleWithSizeInfoImpl(BaseModuleOption const &opt) :
         m_Input(opt.input), m_Output(opt.output) {}
 
-        virtual inline TensorDict * forwardDict(TensorDict *x) noexcept { return x; }
+        virtual inline TensorDict * forwardDict(TensorDict *x) noexcept {  x->insert_or_assign(m_Output, this->forward(x->at(m_Input)) ); return x; }
         virtual inline torch::Tensor forward(const torch::Tensor &x) noexcept { return x; }
 
         void input( std::string const& x) { m_Input = x; }

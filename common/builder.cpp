@@ -57,27 +57,14 @@ namespace sam_dn{
         registerCallBack<sam_dn::DropoutImpl, sam_dn::DropoutImpl::Option >("dropout");
         registerCallBack<sam_dn::LayerNorm1dImpl, sam_dn::LayerNorm1dImpl::Option >("layernorm");
 
-        registerCallBack<sam_dn::Transpose01Impl >("transpose01");
-        registerCallBack<sam_dn::Transpose12Impl>("transpose12");
-        registerCallBack<sam_dn::Transpose23Impl>("transpose23");
-
-        registerCallBack<sam_dn::ExpandAtAxis0IfDimEqual2Impl >("expand_axis0_if_dim2");
-        registerCallBack<sam_dn::ExpandAtAxis0IfDimEqual1Impl >("expand_axis0_if_dim1");
-
-        registerCallBack<sam_dn::ConcatEndImpl>("concat_end");
-        registerCallBack<sam_dn::Concat0Impl>("concat0");
-        registerCallBack<sam_dn::Concat1Impl>("concat1");
-        registerCallBack<sam_dn::Concat2Impl>("concat2");
-        registerCallBack<sam_dn::Concat3Impl>("concat3");
-
-        registerCallBack<sam_dn::StackEndImpl>("stack_end");
-        registerCallBack<sam_dn::Stack0Impl>("stack0");
-        registerCallBack<sam_dn::Stack1Impl>("stack1");
-        registerCallBack<sam_dn::Stack2Impl>("stack2");
-        registerCallBack<sam_dn::Stack3Impl>("stack3");
-
-        registerCallBack<sam_dn::FlattenEndImpl>("flatten_end");
-        registerCallBack<sam_dn::Flatten01Impl>("flatten01");
+        registerCallBack<sam_dn::TransposeImpl, sam_dn::AxisOption>("transpose");
+        registerCallBack<sam_dn::ExpandIfDimEqualImpl, sam_dn::AxisOption >("expand_axis_if_dim_equal");
+        registerCallBack<sam_dn::JoinAtAxisImpl<Joiner::Cat>, sam_dn::AxisOption>("concat");
+        registerCallBack<sam_dn::JoinAtAxisImpl<Joiner::Stack>, sam_dn::AxisOption>("stack");
+        registerCallBack<sam_dn::JoinAtAxisImpl<Joiner::Vstack>, sam_dn::AxisOption>("vstack");
+        registerCallBack<sam_dn::FlattenImpl, sam_dn::AxisOption>("flatten");
+        registerCallBack<sam_dn::SqueezeAtAxisImpl, sam_dn::AxisOption>("squeeze_at");
+        registerCallBack<sam_dn::SplitAndStackImpl, SplitAndStackImpl::Option>("split_and_stack");
     }
 
     SequentialMap Builder::compile(const YAML::Node & root, InputShapes & shapeMap) {
@@ -135,7 +122,7 @@ namespace sam_dn{
                         shapeMap[feature] = get_output_size(shape_key);
                         featureShapeInfo = shapeMap;
                     } catch (std::exception const &) {
-                        std::cerr << "Invalid Attribute Type: [" << type << "]\n";
+                        std::cerr << "Invalid Attribute Type: [" << type << "]\n" << sub_module << "\n";
                         throw;
                     }
                 }
