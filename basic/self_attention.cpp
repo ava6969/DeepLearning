@@ -37,7 +37,7 @@ namespace sam_dn{
 
         std::tuple<torch::Tensor, torch::Tensor, torch::Tensor> SelfAttentionImpl::forward_pass( torch::Tensor const& x){
             auto B = x.size(0);
-
+            auto N = x.size(1);
             TORCH_CHECK(x.dim() == 3,  "SelfAttentionImpl follows openAI Implementation which requires "
                                        "either shape(B NE F)");
             auto inp = norms ? norms.value()(x) : x;
