@@ -27,6 +27,7 @@ add_subdirectory(vision)
 add_subdirectory(memory)
 add_subdirectory(common)
 add_subdirectory(distribution)
+add_subdirectory(wrappers)
 
 if(${BUILD_EXAMPLES})
     add_subdirectory(examples)

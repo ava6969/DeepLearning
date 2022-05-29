@@ -6,6 +6,7 @@
 #define DEEP_NETWORKS_BASIC_H
 
 #include "base.h"
+#include "vision/conv_net.h"
 #include "boost/algorithm/string.hpp"
 
 namespace sam_dn{
@@ -90,15 +91,10 @@ namespace sam_dn{
 
         SplitAndStackImpl()=default;
 
-        explicit SplitAndStackImpl(Option opt): ModuleWithSizeInfoImpl(opt),
-                                                    splitAxis(opt.split_axis),
-                                                    stackAxis(opt.stack_axis),
-                                                    splitSize(opt.split_size){
-            LOG(WARNING) << "SplitAndStackImpl output size cannot be correctly calculated\n";
-        }
+        explicit SplitAndStackImpl(Option opt);
 
-        inline torch::Tensor forward(const torch::Tensor &x) noexcept final{
-            return torch::stack( torch::tensor_split(x, splitSize, splitAxis) , stackAxis );
+        torch::Tensor forward(const torch::Tensor &x) noexcept final{
+            return torch::stack(torch::tensor_split(x, splitSize, splitAxis), stackAxis);;
         }
     };
 
