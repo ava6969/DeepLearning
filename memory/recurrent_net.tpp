@@ -5,8 +5,8 @@
 
 namespace sam_dn{
 
-    RL_REC_T
-    std::string REC_IMPL_T::fullType() const {
+    RecurrentNetTemplate
+    std::string REC_IMPL_T::description() const {
         if constexpr(batchFirst)
             return type == 'l' ? "bf_lstm" : type == 'g' ? "bf_gru" : "bf_rnn";
         else{
@@ -14,17 +14,17 @@ namespace sam_dn{
         }
     }
 
-    RL_REC_T
+    RecurrentNetTemplate
     REC_IMPL_T::RecurrentNetImpl(RecurrentNetOption opt):
-            BaseModuleImpl<RecurrentNetOption, MemoryType, StateType, batchFirst>(opt),
-            device(opt.device){
+            BaseModuleImpl<RecurrentNetOption, MemoryType, StateType, batchFirst>(opt)
+                    ,device(opt.device)
+            {
 
-        opt.type = fullType() + std::to_string(ctr);
-        hidden_out_key = opt.type;
+        opt.type = description() + std::to_string(instance_count);
+        instance_id = opt.type;
+
         OptionType implOpt(opt.InputSize(), opt.hidden_size);
-
         implOpt.dropout(opt.drop_out).bias(opt.new_bias).num_layers(opt.num_layers).batch_first(batchFirst);
-
         this->m_BaseModel = this->register_module(opt.type, MemoryType(implOpt));
 
         this->m_OutputSize = std::vector<int64_t>{opt.hidden_size};
@@ -35,10 +35,10 @@ namespace sam_dn{
         initialStateWithBatchSizeAndDevice(opt.batch_size, device);
         opt.batch_first = batchFirst;
         baseBatchSz = opt.batch_size;
-        ctr++;
+        instance_count++;
     }
 
-    RL_REC_T
+    RecurrentNetTemplate
     void REC_IMPL_T::initialStateWithBatchSizeAndDevice(int batch_size, torch::Device _device) noexcept{
         auto shape = std::vector<int64_t>{this->opt.num_layers, batch_size, this->opt.hidden_size};
 
@@ -49,7 +49,7 @@ namespace sam_dn{
         }
     }
 
-    RL_REC_T
+    RecurrentNetTemplate
     void REC_IMPL_T::initialStateWithBatchSize(int batch_size) noexcept{
         auto shape = std::vector<int64_t>{this->opt.num_layers, batch_size, this->opt.hidden_size};
 
@@ -59,7 +59,7 @@ namespace sam_dn{
             this->m_States   = torch::zeros(shape, this->device);
         }
     }
-    RL_REC_T
+    RecurrentNetTemplate
     void REC_IMPL_T::to(torch::Device _device, bool non_blocking) {
         this->m_BaseModel->to(_device, non_blocking);
         this->device = _device;
@@ -71,7 +71,7 @@ namespace sam_dn{
         }
     }
 
-    RL_REC_T StateType REC_IMPL_T::clone_states() noexcept{
+    RecurrentNetTemplate StateType REC_IMPL_T::clone_states() noexcept{
         if constexpr (std::is_same_v<StateType, TensorTuple>){
             auto state1 = std::get<0>(this->m_States);
             auto state2 = std::get<1>(this->m_States);
@@ -81,7 +81,7 @@ namespace sam_dn{
         }
     }
 
-    RL_REC_T
+    RecurrentNetTemplate
     StateType REC_IMPL_T::zero_states(int _batch_size) noexcept{
         if constexpr (std::is_same_v<StateType, TensorTuple>){
             auto&& state1 = torch::zeros( {this->opt.num_layers, _batch_size, this->opt.hidden_size}, device );
@@ -92,30 +92,30 @@ namespace sam_dn{
         }
     }
 
-    RL_REC_T
+    RecurrentNetTemplate
     torch::Tensor RL_REC_IMPL_T::pass(torch::Tensor const& _mask, torch::Tensor const& x, TensorDict const& hxs){
         StateType maskedState;
         torch::Tensor out;
 
         if constexpr(type == 'l'){
-            maskedState = std::make_tuple(hxs.at(hidden_state_key.first).view({num_layers, -1, hidden_size}) * _mask,
-                                          hxs.at(hidden_state_key.second).view({num_layers, -1, hidden_size}) * _mask);
+            maskedState = std::make_tuple(hxs.at(hidden_state_id.first).view({num_layers, -1, hidden_size}) * _mask,
+                                          hxs.at(hidden_state_id.second).view({num_layers, -1, hidden_size}) * _mask);
         } else{
-            maskedState =  hxs.at(hidden_state_key) * _mask;
+            maskedState = hxs.at(hidden_state_id) * _mask;
         }
 
         std::tie(out, this->m_States) = this->m_BaseModel(x, maskedState);
         return out;
     }
 
-    RL_REC_T
+    RecurrentNetTemplate
     RL_REC_IMPL_T::RLRecurrentNetImpl(RecurrentNetOption opt):
             RecurrentNetImpl<StateType, MemoryType, OptionType, batchFirst, type>(opt){
-        auto id = counter;
+        auto id = std::to_string( this->instance_count - 1 );
         if constexpr(type == 'l') {
-            hidden_state_key = {"__lstm_h"s.append(std::to_string(id)), "__lstm_c"s.append(std::to_string(id))};
+            hidden_state_id = {"__lstm_h"s.append(id), "__lstm_c"s.append(id)};
         }else{
-            hidden_state_key = "__gru_h"s.append(std::to_string(id));
+            hidden_state_id = "__gru_h"s.append(id);
         }
         num_layers = opt.num_layers;
         hidden_size = opt.hidden_size;
@@ -123,7 +123,7 @@ namespace sam_dn{
             this->m_Input = "observation";
     }
 
-    RL_REC_T
+    RecurrentNetTemplate
     std::pair<std::vector<int64_t>, std::vector<torch::Tensor>>
     RL_REC_IMPL_T::terminatedTransitionsIndicesFromAnyWorker( torch::Tensor const& env_mask, int T ) const noexcept{
         std::vector<int64_t> terminalTransitionIndices{0};
@@ -138,7 +138,7 @@ namespace sam_dn{
         return std::make_pair(terminalTransitionIndices, _mask);
     }
 
-    RL_REC_T
+    RecurrentNetTemplate
     std::vector<torch::Tensor> RL_REC_IMPL_T::rnnScores(std::vector<int64_t>  const& terminalTransitionIndices,
                           std::vector<torch::Tensor>  const& mask_vec,
                           TensorDict const& x,
@@ -156,18 +156,18 @@ namespace sam_dn{
         return output;
     }
 
-    RL_REC_T
+    RecurrentNetTemplate
     void RL_REC_IMPL_T::fillState(TensorDict* x) const noexcept{
         // flattent hxs incase of num_layer > 1
         if constexpr(type == 'l'){
-            x->template insert_or_assign(hidden_state_key.first, std::get<0>(this->m_States).flatten(0, 1).data());
-            x->template insert_or_assign(hidden_state_key.second, std::get<1>(this->m_States).flatten(0, 1).data());
+            x->template insert_or_assign(hidden_state_id.first, std::get<0>(this->m_States).flatten(0, 1).data());
+            x->template insert_or_assign(hidden_state_id.second, std::get<1>(this->m_States).flatten(0, 1).data());
         }else{
-            x->template insert_or_assign(hidden_state_key, this->m_States.flatten(0, 1).data());
+            x->template insert_or_assign(hidden_state_id, this->m_States.flatten(0, 1).data());
         }
     }
 
-    RL_REC_T
+    RecurrentNetTemplate
     TensorDict* RL_REC_IMPL_T::forwardDict(TensorDict *x) noexcept {
 
         auto const &input = x->at(this->m_Input);

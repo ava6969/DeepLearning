@@ -13,7 +13,7 @@ using namespace std::string_literals;
 
 namespace sam_dn{
 
-#define RL_REC_T template<typename StateType, typename MemoryType, class OptionType, bool batchFirst, char type>
+#define RecurrentNetTemplate template<typename StateType, typename MemoryType, class OptionType, bool batchFirst, char type>
 #define RL_REC_IMPL_T RLRecurrentNetImpl<StateType, MemoryType, OptionType, batchFirst, type>
 #define REC_IMPL_T RecurrentNetImpl<StateType, MemoryType, OptionType, batchFirst, type>
 
@@ -47,11 +47,11 @@ namespace sam_dn{
     template<typename StateType, typename MemoryType, class OptionType, bool batchFirst, char type>
     class RecurrentNetImpl  : public BaseModuleImpl<RecurrentNetOption, MemoryType, StateType, batchFirst>{
 
-        [[nodiscard]] std::string fullType() const;
+        [[nodiscard]] std::string description() const;
 
     protected:
-        int ctr = 0 ;
-        std::string hidden_out_key;
+        int instance_count = 0 ;
+        std::string instance_id;
         int64_t baseBatchSz;
         std::queue<StateType> snapShot;
         torch::Device device;
@@ -88,7 +88,7 @@ namespace sam_dn{
 
         StateType zero_states(int _batch_size) noexcept;
 
-        inline auto getHiddenKey() const { return hidden_out_key; }
+        inline auto getHiddenKey() const { return instance_id; }
     };
 
     template<typename StateType, typename MemoryType, class OptionType, bool batchFirst, char type>
@@ -106,9 +106,9 @@ namespace sam_dn{
 
         inline auto size_hx(TensorDict* x, int axis){
             if  constexpr(type == 'l'){
-                return x->at( std::get<0>( hidden_state_key ) ).size(axis);
+                return x->at( std::get<0>(hidden_state_id ) ).size(axis);
             } else
-                return x->at( hidden_state_key ).size(axis);
+                return x->at(hidden_state_id ).size(axis);
         }
 
         [[nodiscard]] std::pair<std::vector<int64_t>, std::vector<torch::Tensor>>
@@ -124,8 +124,7 @@ namespace sam_dn{
         TensorDict * forwardDict(TensorDict *x) noexcept override;
 
     private:
-        int counter{};
-        std::conditional_t<type == 'l', std::pair<std::string, std::string>, std::string> hidden_state_key{};
+        std::conditional_t<type == 'l', std::pair<std::string, std::string>, std::string> hidden_state_id{};
         int num_layers = 0, hidden_size=0;
 
         torch::Tensor pass(torch::Tensor const& _mask, torch::Tensor const& x, TensorDict const& hxs);
