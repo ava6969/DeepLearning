@@ -98,12 +98,14 @@ namespace sam_dn{
         torch::Tensor out;
 
         if constexpr(type == 'l'){
-            maskedState = std::make_tuple(hxs.at(hidden_state_id.first).view({num_layers, -1, hidden_size}) * _mask,
-                                          hxs.at(hidden_state_id.second).view({num_layers, -1, hidden_size}) * _mask);
-        } else{
-            maskedState = hxs.at(hidden_state_id) * _mask;
-        }
 
+            auto&& hx = hxs.at(hidden_state_id.first).view({num_layers, -1, hidden_size});
+            auto&& cx = hxs.at(hidden_state_id.second).view({num_layers, -1, hidden_size});
+            maskedState = reset_states ? std::make_tuple( hx * _mask, cx * _mask) : std::make_tuple( hx, cx);
+        } else{
+            auto&& hx = hxs.at(hidden_state_id).view({num_layers, -1, hidden_size});
+            maskedState = reset_states ? hx * _mask : hx;
+        }
         std::tie(out, this->m_States) = this->m_BaseModel(x, maskedState);
         return out;
     }
@@ -119,6 +121,7 @@ namespace sam_dn{
         }
         num_layers = opt.num_layers;
         hidden_size = opt.hidden_size;
+        reset_states = opt.reset_hidden;
         if(this->m_Input.empty())
             this->m_Input = "observation";
     }
@@ -160,6 +163,7 @@ namespace sam_dn{
     void RL_REC_IMPL_T::fillState(TensorDict* x) const noexcept{
         // flattent hxs incase of num_layer > 1
         if constexpr(type == 'l'){
+
             x->template insert_or_assign(hidden_state_id.first, std::get<0>(this->m_States).flatten(0, 1).data());
             x->template insert_or_assign(hidden_state_id.second, std::get<1>(this->m_States).flatten(0, 1).data());
         }else{
@@ -171,23 +175,53 @@ namespace sam_dn{
     TensorDict* RL_REC_IMPL_T::forwardDict(TensorDict *x) noexcept {
 
         auto const &input = x->at(this->m_Input);
-        auto const &env_mask = x->at("mask");
+        auto const &env_mask = reset_states ? x->at("mask") : torch::Tensor{};
         torch::Tensor out;
 
-        if (input.size(0) == size_hx(x, 0)) {
-            out = pass(env_mask.unsqueeze(0), input.unsqueeze(0), *x).squeeze(0);
-        } else {
+        if (input.size(0) == size_hx(x, 0) ) {
+            out = pass( reset_states ? env_mask.unsqueeze(0) : env_mask,
+                        input.unsqueeze(0), *x).squeeze(0);
+        }
+        else {
             const auto L = input.size(-1);
             const auto N = size_hx(x, 0);
             const auto T = int(input.size(0) / N);
             out = input.view({T, N, L});
 
-            auto[indices, mask_vec] = terminatedTransitionsIndicesFromAnyWorker(env_mask, T);
+            if( not ReturnAllSeq::set() ){
+                if(reset_states){
+                    auto[indices, mask_vec] = terminatedTransitionsIndicesFromAnyWorker(env_mask, T);
+                    auto output = rnnScores(indices, mask_vec, *x, out);
+                    out = torch::cat(output, 0);
+                }else{
+                    out = pass(env_mask, out, *x).squeeze(0);
+                }
 
-            auto output = rnnScores(indices, mask_vec, *x, out);
+                out = out.view({T * N, -1});
+            }else{
+                std::conditional_t<type == 'l', std::array< std::vector<torch::Tensor>, 2>,
+                        std::vector<torch::Tensor> > all_state;
 
-            out = torch::cat(output, 0);
-            out = out.view({T * N, -1});
+                torch::Tensor result;
+                for(int t = 0; t < T; t++){
+                    result = pass(env_mask[t].unsqueeze(0), out[t].unsqueeze(0), *x);
+                    if constexpr(type == 'l' ){
+                        all_state[0].push_back( std::get<0>(this->m_States).data() );
+                        all_state[1].push_back( std::get<1>(this->m_States).data()  );
+                    }else{
+                        all_state.push_back( this->m_States.data()  );
+                    }
+                    fillState(x);
+                }
+                out = result;
+
+                if constexpr(type == 'l' ){
+                    this->m_States = TensorTuple ( torch::stack(all_state[0], -1), torch::stack(all_state[1], -1) );
+                }else{
+                    this->m_States = torch::stack(all_state[0], -1);
+                }
+
+            }
         }
         x->template insert_or_assign(this->m_Output, out.squeeze(0));
         fillState(x);

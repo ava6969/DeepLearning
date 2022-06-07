@@ -11,7 +11,21 @@
 
 using namespace std::string_literals;
 
+
 namespace sam_dn{
+    class ReturnAllSeq{
+        inline static bool flag{false};
+    public:
+        ReturnAllSeq(){
+            flag = true;
+        }
+        ~ReturnAllSeq(){
+            flag = false;
+        }
+
+        inline static bool set() { return flag; }
+    };
+
 
 #define RecurrentNetTemplate template<typename StateType, typename MemoryType, class OptionType, bool batchFirst, char type>
 #define RL_REC_IMPL_T RLRecurrentNetImpl<StateType, MemoryType, OptionType, batchFirst, type>
@@ -25,6 +39,7 @@ namespace sam_dn{
         float drop_out{0};
         std::string device;
         std::string type;
+        bool reset_hidden{true};
 
         BaseModuleOption& Input(std::vector<int64_t> const& rnn_in_size) override{
             assert(rnn_in_size.size() == 1);
@@ -126,6 +141,10 @@ namespace sam_dn{
     private:
         std::conditional_t<type == 'l', std::pair<std::string, std::string>, std::string> hidden_state_id{};
         int num_layers = 0, hidden_size=0;
+        bool reset_states{false};
+
+//        std::conditional_t<type == 'l', std::tuple<std::vector<torch::Tensor>, std::vector<torch::Tensor>>,
+//        std::vector<torch::Tensor>>  states;
 
         torch::Tensor pass(torch::Tensor const& _mask, torch::Tensor const& x, TensorDict const& hxs);
     };
@@ -152,6 +171,6 @@ namespace sam_dn{
 #include "recurrent_net.tpp"
 
 SAM_OPTIONS(BaseModuleOption, RecurrentNetOption, SELF(hidden_size), SELF(num_layers), SELF(batch_size),
-            SELF(return_all_seq), SELF(batch_first), SELF(drop_out), SELF(device), SELF(type))
+            SELF(return_all_seq), SELF(batch_first), SELF(drop_out), SELF(device), SELF(type), SELF(reset_hidden))
 
 #endif //SAMFRAMEWORK_RECURRENT_NET_H
