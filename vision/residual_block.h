@@ -19,8 +19,9 @@ namespace sam_dn{
             out = torch::relu(conv1(out));
             out = conv2(out);
             out += x;
+            out = flatten_out ? torch::flatten(out, 1) : out;
             out = relu_out ? torch::relu(out) : out;
-            return flatten_out ? torch::flatten(out, 1) : out;
+            return out;
         }
 
         inline TensorDict * forwardDict(TensorDict *x) noexcept override{

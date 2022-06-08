@@ -67,6 +67,13 @@ namespace sam_dn{
 
         this->m_BaseModel = torch::nn::Sequential();
         ImpalaResidualBlockImpl::Option _opt;
+        _opt.drop_out = opt.drop_out;
+        _opt.batch_norm = opt.batch_norm;
+        _opt.weight_init_param = opt.weight_init_param;
+        _opt.weight_init_type = opt.weight_init_type;
+        _opt.bias_init_param = opt.bias_init_param;
+        _opt.bias_init_type = opt.bias_init_type;
+
         std::for_each(opt.filters.begin(), opt.filters.end() - 1, [&](auto sz) {
             _opt.conv_option.filters = {sz};
             _opt.conv_option.activations = {"none"};
@@ -75,8 +82,6 @@ namespace sam_dn{
             _opt.res_option1.kernels = {3};
             _opt.res_option2.filters = {sz};
             _opt.res_option2.kernels = {3};
-            _opt.drop_out = opt.drop_out;
-            _opt.batch_norm = opt.batch_norm;
             auto block = ImpalaResidualBlock(_opt);
             auto out_sz = block->outputSize();
             inp = {static_cast<int>(out_sz[1]),
@@ -85,18 +90,17 @@ namespace sam_dn{
             this->m_BaseModel->push_back(block);
         });
 
-        _opt.conv_option.filters = {opt.filters.back()};
+        auto sz = opt.filters.back();
+        _opt.conv_option.filters = {sz};
         _opt.conv_option.setInput(inp);
 
         if (opt.relu_last)
             _opt.res_option2.activations = {"relu"};
+        _opt.res_option1.filters = {sz};
+        _opt.res_option2.filters = {sz};
         _opt.res_option2.flatten_output = opt.flatten_out;
 
         auto block = ImpalaResidualBlock(_opt);
-        auto out_sz = block->outputSize();
-        inp = {static_cast<int>(out_sz[1]),
-               static_cast<int>(out_sz[2]),
-               static_cast<int>(out_sz[0])};
 
         m_OutputSize = block->outputSize();
         this->m_BaseModel->push_back(block);

@@ -199,14 +199,12 @@ namespace sam_dn{
 
     struct MaxPool2DImpl: public ModuleWithSizeInfoImpl{
         torch::nn::MaxPool2d pool_2d{nullptr};
-        torch::nn::ZeroPad2d m_padding{nullptr};
-
         bool flatten_out;
+
     public:
         explicit MaxPool2DImpl(CNNOption opt):ModuleWithSizeInfoImpl(opt){
 
             auto _opt = torch::nn::MaxPool2dOptions(opt.kernels[0]).stride(opt.strides[0]);
-            pool_2d = register_module("pool_2d", torch::nn::MaxPool2d(_opt));
 
             auto size_fn = [_opt](int s, int i) {
                 return (
@@ -221,14 +219,13 @@ namespace sam_dn{
                 auto valid_w = size_fn(_in_shape.height, 1);
                 auto valid_h = size_fn(_in_shape.width, 0);
 
-                int w = floorl( (_in_shape.width - 1) / _opt.stride()->at(0)) + 1;
-                int h = floorl( (_in_shape.height - 1) / _opt.stride()->at(1)) + 1;
+                int w = int( std::floor( float(_in_shape.width - 1) / float(_opt.stride()->at(0)) ) ) + 1;
+                int h = int( std::floor( float(_in_shape.height - 1) / float(_opt.stride()->at(1)) ) ) + 1;
 
                 if(  valid_h < h and valid_w < w){
                     auto l_r = w-valid_w;
                     auto t_b = h-valid_h;
-                    torch::nn::ZeroPad2dOptions pad_opt({l_r, l_r, t_b, t_b});
-                    REGISTER_MODULE(m_padding,  torch::nn::ZeroPad2d(pad_opt) );
+                    _opt = _opt.padding({l_r, t_b});
                     m_OutputSize = { _in_shape.channel, w, h};
                 }else{
                     std::cerr << "Cant use Same padding for maxpool2d, resize\n";
@@ -238,13 +235,13 @@ namespace sam_dn{
             else
                 m_OutputSize = { _in_shape.channel, size_fn(_in_shape.width, 0), size_fn(_in_shape.height, 1)};
 
+            pool_2d = register_module("pool_2d", torch::nn::MaxPool2d(_opt));
             flatten_out = opt.flatten_output;
 
         }
 
         inline torch::Tensor forward(torch::Tensor const& x) noexcept override{
-            auto out = m_padding ? m_padding(x) : x;
-            return flatten_out ? torch::flatten( pool_2d(out) ) : pool_2d(out);
+            return flatten_out ? torch::flatten( pool_2d(x) ) : pool_2d(x);
         }
         inline TensorDict* forwardDict(TensorDict* x) noexcept override{
             x->insert_or_assign(m_Output, forward(x->at(m_Input))); return x;

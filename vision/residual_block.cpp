@@ -10,8 +10,11 @@ namespace sam_dn{
         auto in_channels = _opt.InputShape().channel;
 
         torch::nn::Conv2dOptions opt(in_channels, _opt.filters[0], _opt.kernels[0]);
-        opt.padding(1);
         opt.stride(1);
+
+        auto _pad = same_pad(_opt.filters[0], opt, _opt.InputShape());
+        opt.padding(_pad.second);
+
         conv1 = register_module("conv1", torch::nn::Conv2d(opt));
         conv2 = register_module("conv2", torch::nn::Conv2d(opt));
 

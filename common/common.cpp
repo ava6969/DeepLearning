@@ -3,6 +3,7 @@
 //
 
 #include <tabulate/table.hpp>
+#include "vision/conv_net.h"
 #include "summary.h"
 #include "common.h"
 
@@ -76,5 +77,6 @@ namespace sam_dn{
         }
         out << std::to_string(model_size) << " " << BYTE_LABELS[label_index] << std::endl;
     }
+
 
 }
