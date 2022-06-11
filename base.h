@@ -19,7 +19,11 @@ namespace sam_dn{
         float weight_init_param{ std::sqrt(2.f) }, bias_init_param{ 0 };
         bool new_bias{};
         std::unordered_map<std::string, std::vector<int64_t>> dict_opt;
+        bool store_state{false};
 
+        BaseModuleOption()=default;
+        BaseModuleOption(std::string input, std::string output):input( move(input)), output( move(output)) {}
+        void fill(std::vector<int64_t> const& x) { dict_opt[input] = x; }
         virtual BaseModuleOption& Input(std::vector<int64_t> const&) { return *this; }
     };
 

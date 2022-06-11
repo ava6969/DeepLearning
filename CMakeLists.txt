@@ -29,6 +29,9 @@ add_subdirectory(common)
 add_subdirectory(distribution)
 add_subdirectory(wrappers)
 
+set(OpenCV_DIR ${SAM_PATH}/thirdparty/open_cv/lib/cmake/opencv4)
+find_package(OpenCV REQUIRED core highgui imgproc)
+
 if(${BUILD_EXAMPLES})
     add_subdirectory(examples)
 endif()
@@ -36,6 +39,7 @@ endif()
 # Link Dependencies and add include dirs
 target_include_directories( ${PROJECT_NAME} PRIVATE .
         ${SAM_PATH}/tensorboard_logger/include ${SAM_PATH}/tensorboard_logger )
-target_link_libraries(${PROJECT_NAME} PRIVATE ${TORCH_LIBRARIES} yaml-cpp tensorboard_logger )
+target_link_libraries(${PROJECT_NAME} PRIVATE ${TORCH_LIBRARIES} yaml-cpp tensorboard_logger  ${OpenCV_LIBS}  )
 
 message('CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS}')
+add_subdirectory(test)

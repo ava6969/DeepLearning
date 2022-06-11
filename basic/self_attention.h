@@ -49,6 +49,7 @@ namespace sam_dn{
         torch::optional<torch::nn::LayerNorm> norms{torch::nullopt}, post_norm{torch::nullopt};
         SelfAttentionOption opt;
         int64_t embed_head_ratio;
+        inline static int instance_id{};
     };
 
     TORCH_MODULE(SelfAttention);
@@ -56,6 +57,6 @@ namespace sam_dn{
 
 SAM_OPTIONS(BaseModuleOption, SelfAttentionOption,
             SELF(n_embed), SELF(n_heads), SELF(layer_norm), SELF(post_layer_norm),
-            SELF(qk_w), SELF(v_w), SELF(max_pool), SELF(post_w));
+            SELF(qk_w), SELF(v_w), SELF(max_pool), SELF(post_w), SELF(store_state));
 
 #endif //DEEP_NETWORKS_SELF_ATTENTION_H

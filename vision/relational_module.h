@@ -2,86 +2,35 @@
 //
 // Created by dewe on 6/10/22.
 //
-
+#include "basic/self_attention.h"
+#include "wrappers/adapters.h"
 #include "base.h"
 
+#ifdef DEBUG_VISION
+    #define DEBUG_ATTN
+#endif
 
 namespace sam_dn {
 
-    /*
-    Adds two extra channels to the feature dimension, indicating the spatial
-    position (x and y) of each cell in the feature map using evenly spaced values
-    between −1 and 1. Then projects the feature dimension to n_features through a
-            linear layer.
-    */
-    class PositionalEncodingImpl : public torch::nn::Module {
+
+    class AttentionBlockImpl : public torch::nn::Module {
+
+        torch::nn::LayerNorm q_norm{nullptr}, k_norm{nullptr}, v_norm{nullptr}, post_norm{nullptr};
+        torch::nn::Linear q{nullptr}, k{nullptr}, v{nullptr}, w1{nullptr}, w2{nullptr};
+        bool max_out = true;
+        std::pair<torch::Tensor, torch::Tensor > attention_forward( torch::Tensor const& x);
+        float logit_scale;
+        int embed_head_ratio;
+        SelfAttentionOption opt;
+        inline static int global_instance_counter{}, instance_id;
 
     public:
-        PositionalEncodingImpl(int n_kernels, int n_feature) :
-                projection(register_module("projection", torch::nn::Linear(n_kernels+2, n_feature))){}
 
-        inline torch::Tensor forward(torch::Tensor const &x) {
-            auto z = add_encoding2D(x);
-            z = z.view({x.size(0), z.size(1), -1});
-            z = projection(z.transpose(2, 1)).transpose(1, 0);
-            return z;
-        }
+        explicit AttentionBlockImpl(SelfAttentionOption opt);
+        torch::Tensor forward ( torch::Tensor const& x ) noexcept;
 
-        static inline torch::Tensor add_encoding2D(torch::Tensor const& x){
-            auto x_ax = x.size(-2);
-            auto y_ax = x.size(-1);
 
-            auto x_lin = torch::linspace(-1, 1, x_ax);
-            auto xx = x_lin.repeat({x.size(0), y_ax, 1}).view({-1, 1, y_ax, x_ax}).transpose(3, 2);
-
-            auto y_lin = torch::linspace(-1, 1, y_ax).view({-1, 1});
-            auto yy = y_lin.repeat({x.size(0), 1, x_ax}).view({-1, 1, y_ax, x_ax}).transpose(3, 2);
-
-            return torch::cat( {x, xx.to(x), yy.to(x)}, 1);
-        }
-
-    private:
-        torch::nn::Linear projection{nullptr};
     };
-
-    TORCH_MODULE(PositionalEncoding);
-
-    class PositionWiseFeedForwardImpl : public torch::nn::Module {
-
-    public:
-        PositionWiseFeedForwardImpl(int d_model, int d_ff, float dropout = 0.1) :
-                w_1(register_module("w_1", torch::nn::Linear(d_model, d_ff))),
-                w_2(register_module("w_2", torch::nn::Linear(d_ff, d_model))),
-                dropout(dropout) {}
-
-        inline auto forward(torch::Tensor const &x) {
-            return w_2(dropout(torch::relu(w_1(x))));
-        }
-
-    private:
-        torch::nn::Linear w_1{nullptr}, w_2{nullptr};
-        torch::nn::Dropout dropout{nullptr};
-    };
-
-    TORCH_MODULE(PositionWiseFeedForward);
-
-class AttentionBlockImpl : public torch::nn::Module {
-
-        torch::nn::LayerNorm norm{nullptr};
-        torch::nn::Dropout dropout{nullptr};
-        torch::nn::MultiheadAttention attn{nullptr};
-        PositionWiseFeedForward ff{nullptr};
-    public:
-
-        struct Option : BaseModuleOption{
-            int n_kernels{}, n_features{}, n_heads{}, n_attn_modules{}, n_hidden{};
-            float dropout{};
-        };
-
-        explicit AttentionBlockImpl(Option);
-        torch::Tensor forward ( torch::Tensor const& x, std::optional<torch::Tensor> const&) noexcept;
-    };
-
     TORCH_MODULE(AttentionBlock);
 
     class RelationalModuleImpl : public ModuleWithSizeInfoImpl {
@@ -90,11 +39,12 @@ class AttentionBlockImpl : public torch::nn::Module {
     public:
 
         struct Option : BaseModuleOption{
-            AttentionBlockImpl::Option attn;
-            int64_t n_blocks{}, n_kernels{};
+            SelfAttentionOption attn;
+            int64_t n_blocks{};
+            bool recurrent{true};
 
-            BaseModuleOption& Input(std::vector<int64_t> const& x) override{
-                n_blocks = x[0];
+            BaseModuleOption& Input(std::vector<int64_t> const& x) override {
+                attn.Input(x);
                 return *this;
             }
         };
@@ -106,3 +56,5 @@ class AttentionBlockImpl : public torch::nn::Module {
     TORCH_MODULE(RelationalModule);
 
 }
+
+SAM_OPTIONS(BaseModuleOption, RelationalModuleImpl::Option, SELF(attn), SELF(n_blocks), SELF(recurrent));

@@ -5,6 +5,7 @@
 #include "string"
 #include "basic/fcnn.h"
 #include "vision/conv_net.h"
+#include "vision/relational_module.h"
 #include "memory/recurrent_net.h"
 #include "basic/embedding.h"
 #include "basic/self_attention.h"
@@ -52,6 +53,7 @@ namespace sam_dn{
         registerCallBack<sam_dn::RLGRUTimeFirstImpl , sam_dn::RecurrentNetOption>("rl_gru");
 
         registerCallBack<sam_dn::SelfAttentionImpl, sam_dn::SelfAttentionOption>("self_attn");
+        registerCallBack<sam_dn::RelationalModuleImpl, sam_dn::RelationalModuleImpl::Option>("relational");
         registerCallBack<sam_dn::EntityAwareImpl, sam_dn::EntityAwareOption>("entity_aware");
 
         registerCallBack<sam_dn::DropoutImpl, sam_dn::DropoutImpl::Option >("dropout");
