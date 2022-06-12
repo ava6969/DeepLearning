@@ -73,7 +73,7 @@ namespace sam_dn{
         return {A, attn_weights};
     }
 
-    RelationalModuleImpl::RelationalModuleImpl(Option opt){
+    RelationalModuleImpl::RelationalModuleImpl(Option opt): ModuleWithSizeInfoImpl(opt){
         seq= torch::nn::Sequential();
         auto in = opt.dict_opt[opt.input];
         Conv2DPositionEncode pos_enc(in[0], in[1], in[2]);
