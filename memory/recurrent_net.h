@@ -65,7 +65,7 @@ namespace sam_dn{
         [[nodiscard]] std::string description() const;
 
     protected:
-        int instance_count = 0 ;
+        static inline int instance_count = 0 ;
         std::string instance_id;
         int64_t baseBatchSz;
         std::queue<StateType> snapShot;
@@ -99,9 +99,11 @@ namespace sam_dn{
             snapShot.pop();
         }
 
+        void clone_states(std::unordered_map<std::string, std::pair< torch::Tensor, ModuleWithSizeInfoImpl*>>& ) noexcept override;
+
         StateType clone_states() noexcept;
 
-        StateType zero_states(int _batch_size) noexcept;
+        torch::Tensor zero_states(int _batch_size) noexcept override;
 
         inline auto getHiddenKey() const { return instance_id; }
     };
@@ -121,9 +123,9 @@ namespace sam_dn{
 
         inline auto size_hx(TensorDict* x, int axis){
             if  constexpr(type == 'l'){
-                return x->at( std::get<0>(hidden_state_id ) ).size(axis);
+                return x->at( this->instance_id + "_hx" ).size(axis);
             } else
-                return x->at(hidden_state_id ).size(axis);
+                return x->at( this->instance_id ).size(axis);
         }
 
         [[nodiscard]] std::pair<std::vector<int64_t>, std::vector<torch::Tensor>>
@@ -139,15 +141,21 @@ namespace sam_dn{
         TensorDict * forwardDict(TensorDict *x) noexcept override;
 
     private:
-        std::conditional_t<type == 'l', std::pair<std::string, std::string>, std::string> hidden_state_id{};
+
         int num_layers = 0, hidden_size=0;
         bool reset_states{false};
-
-//        std::conditional_t<type == 'l', std::tuple<std::vector<torch::Tensor>, std::vector<torch::Tensor>>,
-//        std::vector<torch::Tensor>>  states;
-
         torch::Tensor pass(torch::Tensor const& _mask, torch::Tensor const& x, TensorDict const& hxs);
     };
+
+    extern template class RecurrentNetImpl<TensorTuple , torch::nn::LSTM, torch::nn::LSTMOptions, true, 'l'>;
+    extern template class RecurrentNetImpl<TensorTuple , torch::nn::LSTM, torch::nn::LSTMOptions, false, 'l'>;
+    extern template class RecurrentNetImpl<torch::Tensor , torch::nn::GRU, torch::nn::GRUOptions, true, 'g'>;
+    extern template class RecurrentNetImpl<torch::Tensor , torch::nn::GRU, torch::nn::GRUOptions, false, 'g'>;
+    extern template class RecurrentNetImpl<torch::Tensor , torch::nn::RNN, torch::nn::RNNOptions, true, 'r'>;
+    extern template class RecurrentNetImpl<torch::Tensor , torch::nn::RNN, torch::nn::RNNOptions, false, 'r'>;
+    extern template class RLRecurrentNetImpl<TensorTuple , torch::nn::LSTM, torch::nn::LSTMOptions, false, 'l'>;
+    extern template class RLRecurrentNetImpl<torch::Tensor , torch::nn::GRU, torch::nn::GRUOptions, false, 'g'>;
+    extern template class RLRecurrentNetImpl<torch::Tensor , torch::nn::RNN, torch::nn::RNNOptions, false, 'r'>;
 
     using LSTMBatchFirstImpl = RecurrentNetImpl<TensorTuple , torch::nn::LSTM, torch::nn::LSTMOptions, true, 'l'>;
     using LSTMTimeFirstImpl = RecurrentNetImpl<TensorTuple , torch::nn::LSTM, torch::nn::LSTMOptions, false, 'l'>;
@@ -167,8 +175,6 @@ namespace sam_dn{
     TORCH_MODULE(RNNBatchFirst);
     TORCH_MODULE(RNNTimeFirst);
 }
-
-#include "recurrent_net.tpp"
 
 SAM_OPTIONS(BaseModuleOption, RecurrentNetOption, SELF(hidden_size), SELF(num_layers), SELF(batch_size),
             SELF(return_all_seq), SELF(batch_first), SELF(drop_out), SELF(device), SELF(type), SELF(reset_hidden))

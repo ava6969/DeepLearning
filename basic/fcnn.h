@@ -45,6 +45,8 @@ namespace sam_dn{
         }
     };
     TORCH_MODULE(FCNN);
+
+    extern template class BaseModuleImpl<sam_dn::FCNNOption, torch::nn::Sequential, sam_dn::NoState, false, false>;
 }
 
 SAM_OPTIONS(BaseModuleOption, FCNNOption, SELF(dims), SELF(act_fn));

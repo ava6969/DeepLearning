@@ -2,6 +2,7 @@
 // Created by dewe on 3/24/22.
 //
 
+#include "recurrent_net.h"
 
 namespace sam_dn{
 
@@ -81,15 +82,18 @@ namespace sam_dn{
         }
     }
 
-    RecurrentNetTemplate
-    StateType REC_IMPL_T::zero_states(int _batch_size) noexcept{
+    RecurrentNetTemplate void REC_IMPL_T::clone_states(std::unordered_map<std::string, std::pair< torch::Tensor, ModuleWithSizeInfoImpl*>>& x) noexcept{
         if constexpr (std::is_same_v<StateType, TensorTuple>){
-            auto&& state1 = torch::zeros( {this->opt.num_layers, _batch_size, this->opt.hidden_size}, device );
-            auto&& state2 = torch::zeros( {this->opt.num_layers, _batch_size, this->opt.hidden_size}, device );
-            return std::make_tuple( std::move(state1), std::move(state2));
+            x[this->instance_id + "_hx"] = { std::get<0>(this->m_States).data(), this};
+            x[this->instance_id + "_cx"] = { std::get<1>(this->m_States).data(), this};
         }else{
-            return torch::zeros( {this->opt.num_layers, _batch_size, this->opt.hidden_size}, device );
+            x[instance_id] = { this->m_States.data(), this};
         }
+    }
+
+    RecurrentNetTemplate
+    torch::Tensor REC_IMPL_T::zero_states(int _batch_size) noexcept{
+        return torch::zeros( {this->opt.num_layers, _batch_size, this->opt.hidden_size}, device );
     }
 
     RecurrentNetTemplate
@@ -99,26 +103,22 @@ namespace sam_dn{
 
         if constexpr(type == 'l'){
 
-            auto&& hx = hxs.at(hidden_state_id.first).view({num_layers, -1, hidden_size});
-            auto&& cx = hxs.at(hidden_state_id.second).view({num_layers, -1, hidden_size});
+            auto&& hx = hxs.at(this->instance_id + "_hx").view({num_layers, -1, hidden_size});
+            auto&& cx = hxs.at(this->instance_id + "_cx").view({num_layers, -1, hidden_size});
             maskedState = reset_states ? std::make_tuple( hx * _mask, cx * _mask) : std::make_tuple( hx, cx);
         } else{
-            auto&& hx = hxs.at(hidden_state_id).view({num_layers, -1, hidden_size});
+            auto&& hx = hxs.at(this->instance_id).view({num_layers, -1, hidden_size});
             maskedState = reset_states ? hx * _mask : hx;
+
         }
         std::tie(out, this->m_States) = this->m_BaseModel(x, maskedState);
+
         return out;
     }
 
     RecurrentNetTemplate
     RL_REC_IMPL_T::RLRecurrentNetImpl(RecurrentNetOption opt):
             RecurrentNetImpl<StateType, MemoryType, OptionType, batchFirst, type>(opt){
-        auto id = std::to_string( this->instance_count - 1 );
-        if constexpr(type == 'l') {
-            hidden_state_id = {"__lstm_h"s.append(id), "__lstm_c"s.append(id)};
-        }else{
-            hidden_state_id = "__gru_h"s.append(id);
-        }
         num_layers = opt.num_layers;
         hidden_size = opt.hidden_size;
         reset_states = opt.reset_hidden;
@@ -164,10 +164,11 @@ namespace sam_dn{
         // flattent hxs incase of num_layer > 1
         if constexpr(type == 'l'){
 
-            x->template insert_or_assign(hidden_state_id.first, std::get<0>(this->m_States).flatten(0, 1).data());
-            x->template insert_or_assign(hidden_state_id.second, std::get<1>(this->m_States).flatten(0, 1).data());
+            x->template insert_or_assign(this->instance_id + "_hx", std::get<0>(this->m_States).flatten(0, 1).data());
+            x->template insert_or_assign(this->instance_id + "_hx", std::get<1>(this->m_States).flatten(0, 1).data());
         }else{
-            x->template insert_or_assign(hidden_state_id, this->m_States.flatten(0, 1).data());
+            x->template insert_or_assign(this->instance_id , this->m_States.flatten(0, 1).data());
+
         }
     }
 
@@ -184,7 +185,7 @@ namespace sam_dn{
         }
         else {
             const auto L = input.size(-1);
-            const auto N = size_hx(x, 0);
+            const auto N = this->size_hx(x, 0);
             const auto T = int(input.size(0) / N);
             out = input.view({T, N, L});
 
@@ -228,4 +229,15 @@ namespace sam_dn{
 
         return x;
     }
+
+    template class RecurrentNetImpl<TensorTuple , torch::nn::LSTM, torch::nn::LSTMOptions, true, 'l'>;
+    template class RecurrentNetImpl<TensorTuple , torch::nn::LSTM, torch::nn::LSTMOptions, false, 'l'>;
+    template class RecurrentNetImpl<torch::Tensor , torch::nn::GRU, torch::nn::GRUOptions, true, 'g'>;
+    template class RecurrentNetImpl<torch::Tensor , torch::nn::GRU, torch::nn::GRUOptions, false, 'g'>;
+    template class RecurrentNetImpl<torch::Tensor , torch::nn::RNN, torch::nn::RNNOptions, true, 'r'>;
+    template class RecurrentNetImpl<torch::Tensor , torch::nn::RNN, torch::nn::RNNOptions, false, 'r'>;
+    template class RLRecurrentNetImpl<TensorTuple , torch::nn::LSTM, torch::nn::LSTMOptions, false, 'l'>;
+    template class RLRecurrentNetImpl<torch::Tensor , torch::nn::GRU, torch::nn::GRUOptions, false, 'g'>;
+    template class RLRecurrentNetImpl<torch::Tensor , torch::nn::RNN, torch::nn::RNNOptions, false, 'r'>;
+
 }

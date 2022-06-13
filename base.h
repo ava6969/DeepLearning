@@ -39,6 +39,8 @@ namespace sam_dn{
 
         virtual inline TensorDict * forwardDict(TensorDict *x) noexcept {  x->insert_or_assign(m_Output, this->forward(x->at(m_Input)) ); return x; }
         virtual inline torch::Tensor forward(const torch::Tensor &x) noexcept { return x; }
+        virtual void clone_states(std::unordered_map<std::string, std::pair< torch::Tensor, ModuleWithSizeInfoImpl*>>& ) noexcept {};
+        virtual torch::Tensor zero_states(int _batch_size) noexcept { return {}; };
 
         void input( std::string const& x) { m_Input = x; }
         void output( std::string const& x) { m_Output = x; }
@@ -110,9 +112,10 @@ namespace sam_dn{
             sam_dn::NoState, false, true>;
 
     TORCH_MODULE(ModuleWithSizeInfo);
-}
 
-#include "base.tpp"
+    extern template class BaseModuleImpl<sam_dn::BaseModuleOption, torch::nn::Sequential, sam_dn::NoState, false, true>;
+    extern template class BaseModuleImpl<sam_dn::BaseModuleOption, torch::nn::Sequential, sam_dn::NoState, false, false>;
+}
 
 using namespace sam_dn;
 

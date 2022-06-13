@@ -52,6 +52,8 @@ namespace sam_dn{
 
     };
 
+    extern template class BaseModuleImpl<EmbeddingOption, torch::nn::Embedding, sam_dn::NoState, false, false >;
+
     TORCH_MODULE(Embedding);
 }
 

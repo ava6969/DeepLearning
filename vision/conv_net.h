@@ -113,6 +113,7 @@ namespace sam_dn {
 
     TORCH_MODULE(CNN);
     TORCH_MODULE(CNNTranspose);
+    extern template class BaseModuleImpl<sam_dn::CNNOption, torch::nn::Sequential, sam_dn::NoState, false, false>;
 
 }
 

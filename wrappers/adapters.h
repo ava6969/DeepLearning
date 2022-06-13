@@ -35,7 +35,7 @@ namespace sam_dn{
             m_OutputSize = {x_ax*y_ax, channel + 2};
         }
 
-        torch::Tensor forward(torch::Tensor const& x) noexcept override{
+        inline torch::Tensor forward(torch::Tensor const& x) noexcept override{
             return torch::cat({x, spatial_coords.repeat({ x.size(0), 1, 1, 1})}, 1).permute({0, 2, 3, 1}).flatten(1, 2);
         }
 

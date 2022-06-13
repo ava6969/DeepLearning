@@ -19,7 +19,7 @@ find_package(tabulate REQUIRED)
 find_package(yaml-cpp  REQUIRED 0.7.0)
 
 # Create Targets
-add_library(${PROJECT_NAME} STATIC base.tpp)
+add_library(${PROJECT_NAME} STATIC base.cpp)
 
 # Combine All CMakeList
 add_subdirectory(basic)

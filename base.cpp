@@ -2,6 +2,10 @@
 // Created by dewe on 3/24/22.
 //
 
+#include <basic/embedding.h>
+#include <basic/fcnn.h>
+#include <memory/recurrent_net.h>
+#include "base.h"
 
 namespace sam_dn{
 
@@ -71,9 +75,24 @@ namespace sam_dn{
             auto state2 = std::get<1>(new_state);
             this->m_States = std::make_tuple(state1.data().view({this->opt.num_layers, -1, this->opt.hidden_size}),
                                              state2.data().view({this->opt.num_layers, -1, this->opt.hidden_size}));
-        }else{
+        }else if constexpr( std::is_same_v<StateType, torch::Tensor> ){
             this->m_States = std::move(new_state.data().view({this->opt.num_layers, -1, this->opt.hidden_size}));
         }
     }
+
+    template class BaseModuleImpl<sam_dn::EmbeddingOption, torch::nn::Embedding, sam_dn::NoState, false, false >;
+    template class BaseModuleImpl<sam_dn::FCNNOption, torch::nn::Sequential, sam_dn::NoState, false, false>;
+
+    template class BaseModuleImpl<RecurrentNetOption, torch::nn::RNN, at::Tensor, false, false>;
+    template class BaseModuleImpl<RecurrentNetOption, torch::nn::LSTM, std::tuple<at::Tensor, at::Tensor>, false, false>;
+    template class BaseModuleImpl<RecurrentNetOption, torch::nn::GRU, at::Tensor, false, false>;
+
+    template class BaseModuleImpl<RecurrentNetOption, torch::nn::RNN, at::Tensor, true, false>;
+    template class BaseModuleImpl<RecurrentNetOption, torch::nn::LSTM, std::tuple<at::Tensor, at::Tensor>, true, false>;
+    template class BaseModuleImpl<RecurrentNetOption, torch::nn::GRU, at::Tensor, true, false>;
+
+    template class BaseModuleImpl<sam_dn::BaseModuleOption, torch::nn::Sequential, sam_dn::NoState, false, true>;
+    template class BaseModuleImpl<sam_dn::BaseModuleOption, torch::nn::Sequential, sam_dn::NoState, false, false>;
+    template class BaseModuleImpl<sam_dn::CNNOption, torch::nn::Sequential, sam_dn::NoState, false, false>;
 
 }
