@@ -9,11 +9,11 @@ namespace sam_dn{
     SelfAttentionImpl::SelfAttentionImpl(const SelfAttentionOption& opt):ModuleWithSizeInfoImpl(opt),opt(opt),
         qk_scale(  std::sqrt( opt.qk_w / float(opt.features_size) ) ),
         v_scale(  std::sqrt( opt.v_w / float(opt.features_size) ) ),
-        logit_scale( std::sqrt( float(opt.n_embed) / float(opt.n_heads) ) ),
-        post_scale( std::sqrt( opt.post_w / float(opt.n_embed) ) ),
-        qk(register_module("qk_embed", torch::nn::Linear( opt.features_size, opt.n_embed * 2 ) ) ),
-        value(register_module("v_embed", torch::nn::Linear( opt.features_size, opt.n_embed ) ) ),
-        post_a_mlp(register_module("post_a_mlp", torch::nn::Linear(opt.n_embed, opt.features_size) ) )
+        logit_scale( std::sqrt(float(opt.head_size) / float(opt.n_heads) ) ),
+        post_scale( std::sqrt( opt.post_w / float(opt.head_size) ) ),
+        qk(register_module("qk_embed", torch::nn::Linear( opt.features_size, opt.head_size * 2 ) ) ),
+        value(register_module("v_embed", torch::nn::Linear( opt.features_size, opt.head_size ) ) ),
+        post_a_mlp(register_module("post_a_mlp", torch::nn::Linear(opt.head_size, opt.features_size) ) )
         {
             paramInit( opt.weight_init_type == "none" ? "xavier_normal" : opt.weight_init_type,
                        qk_scale, qk->weight);
@@ -21,7 +21,7 @@ namespace sam_dn{
                        v_scale, value->weight);
             paramInit( opt.weight_init_type == "none" ? "xavier_normal" : opt.weight_init_type,
                        post_scale, post_a_mlp->weight);
-            embed_head_ratio = static_cast<long>(std::floor(opt.n_embed/opt.n_heads)) ;
+            embed_head_ratio = static_cast<long>(std::floor(opt.head_size / opt.n_heads)) ;
             if(opt.layer_norm){
                 torch::nn::LayerNormOptions _opt({opt.features_size});
                 _opt.elementwise_affine(true);
@@ -74,7 +74,7 @@ namespace sam_dn{
             auto soft_max = torch::softmax(logit, -1);
 
             auto att_sum = torch::matmul(soft_max, _value).permute({0, 2, 1, 3}); // ( B, n_output_entities, heads, m_State)
-            att_sum = att_sum.reshape({-1, this->opt.n_features, this->opt.n_embed});
+            att_sum = att_sum.reshape({-1, this->opt.n_features, this->opt.head_size});
             auto x = inp + post_a_mlp(att_sum);
             x = post_norm ? post_norm.value()(x) : x;
             if(opt.max_pool.has_value())

@@ -40,6 +40,7 @@ namespace sam_dn{
         std::string device;
         std::string type;
         bool reset_hidden{true};
+        std::optional<int> id{std::nullopt};
 
         BaseModuleOption& Input(std::vector<int64_t> const& rnn_in_size) override{
             assert(rnn_in_size.size() == 1);
@@ -176,7 +177,7 @@ namespace sam_dn{
     TORCH_MODULE(RNNTimeFirst);
 }
 
-SAM_OPTIONS(BaseModuleOption, RecurrentNetOption, SELF(hidden_size), SELF(num_layers), SELF(batch_size),
+SAM_OPTIONS(BaseModuleOption, RecurrentNetOption, SELF(hidden_size), SELF(num_layers), SELF(batch_size), SELF(id),
             SELF(return_all_seq), SELF(batch_first), SELF(drop_out), SELF(device), SELF(type), SELF(reset_hidden))
 
 #endif //SAMFRAMEWORK_RECURRENT_NET_H

@@ -81,9 +81,24 @@ namespace sam_dn{
             auto nextShape = outputShape(opt.InputShape(), 0, _opt.dilation()->at(0), opt.kernels[i], opt.strides[i]);
 
             if(not opt.padding.empty() and opt.padding[i] == "same") {
-                auto[out, pad] = same_pad(opt.filters[i+1], _opt, opt.InputShape());
-                _opt = _opt.padding(pad);
-                nextShape = out;
+                if constexpr( std::same_as<Option, torch::nn::Conv2dOptions>){
+                    _opt = static_cast<torch::nn::Conv2dOptions>(_opt).padding(torch::enumtype::kSame());
+                    nextShape = opt.InputShape();
+                    nextShape.channel = opt.filters[i];
+                }else{
+                    auto[out, pad] = same_pad(opt.filters[i+1], _opt, opt.InputShape());
+                    _opt = _opt.padding(pad);
+                    nextShape = out;
+                }
+
+            }else if(not opt.padding.empty() and opt.padding[i] != "valid"){
+                auto p = std::stoi(opt.padding[i]);
+                _opt = _opt.padding( p);
+                auto s = opt.InputShape();
+                s.height += 2*p;
+                s.width += 2*p;
+                nextShape = outputShape(s, 0, _opt.dilation()->at(0), opt.kernels[i], opt.strides[i]);
+                nextShape.channel = opt.filters[i];
             }
 
             Net net(_opt);

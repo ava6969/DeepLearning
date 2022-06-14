@@ -10,8 +10,8 @@ int main(){
     sam_dn::RelationalModuleImpl::Option opt;
     opt.recurrent = true;
     opt.n_blocks = 2;
-    opt.attn.n_heads = 4;
-    opt.attn.n_embed = 256;
+    opt.attn.n_heads = 2;
+    opt.attn.head_size = 64;
     opt.input = "test";
     opt.dict_opt["test"] = {64, 14, 14};
 

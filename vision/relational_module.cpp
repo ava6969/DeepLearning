@@ -9,27 +9,17 @@
 namespace sam_dn{
 
     AttentionBlockImpl::AttentionBlockImpl(SelfAttentionOption opt):
-    q_norm(register_module("q_norm", torch::nn::LayerNorm(
-            torch::nn::LayerNormOptions({opt.n_embed}).elementwise_affine(true) ) ) ),
-    k_norm(register_module("k_norm", torch::nn::LayerNorm(
-            torch::nn::LayerNormOptions({opt.n_embed}).elementwise_affine(true) ) ) ),
-    v_norm(register_module("v_norm", torch::nn::LayerNorm(
-            torch::nn::LayerNormOptions({opt.n_embed}).elementwise_affine(true) ) ) ),
+    qkv_norm(register_module("qkv_norm", torch::nn::LayerNorm(
+            torch::nn::LayerNormOptions({opt.head_size * 3 * opt.n_heads }).elementwise_affine(true) ) ) ),
     post_norm(register_module("post_norm", torch::nn::LayerNorm(
             torch::nn::LayerNormOptions({opt.features_size}).elementwise_affine(true) ) ) ),
-    q(register_module("q", torch::nn::Linear( opt.features_size, opt.n_embed  ) ) ),
-    k(register_module("k", torch::nn::Linear( opt.features_size, opt.n_embed  ) ) ),
-    v(register_module("v", torch::nn::Linear( opt.features_size, opt.n_embed  ) ) ),
-    w1(register_module("w_1", torch::nn::Linear(opt.n_embed, opt.n_embed))),
-    w2(register_module("w_2", torch::nn::Linear(opt.n_embed, opt.features_size))),
-    logit_scale( std::sqrt( float(opt.n_embed) / float(opt.n_heads) ) ),
-    opt( opt ),
-    embed_head_ratio( static_cast<int>(std::floor(opt.n_embed/opt.n_heads)) )
+    qkv(register_module("qkv", torch::nn::Linear( opt.features_size, 3*opt.head_size*opt.n_heads  ) ) ),
+    w1(register_module("w_1", torch::nn::Linear(opt.head_size*opt.n_heads , opt.features_size))),
+    w2(register_module("w_2", torch::nn::Linear(opt.features_size, opt.features_size))),
+    opt( opt )
     {
         instance_id = global_instance_counter++;
-        initializeWeightBias(q, opt);
-        initializeWeightBias(k, opt);
-        initializeWeightBias(v, opt);
+        initializeWeightBias(qkv, opt);
         initializeWeightBias( w1, opt);
         initializeWeightBias( w2, opt);
 
@@ -61,16 +51,21 @@ namespace sam_dn{
 
     std::pair<torch::Tensor, torch::Tensor> AttentionBlockImpl::attention_forward(torch::Tensor const& x) {
         auto B = x.size(0);
-        auto[Q, K, V] = std::make_tuple( q_norm(q(x)), k_norm(k(x)), v_norm(v(x)) );
-        Q = Q.view({B, this->opt.n_features, this->opt.n_heads, embed_head_ratio}).permute({0, 2, 1, 3});
-        K = K.view({B, this->opt.n_features, this->opt.n_heads, embed_head_ratio}).permute({0, 2, 3, 1});
-        V = V.view({B, this->opt.n_features, this->opt.n_heads, embed_head_ratio}).permute({0, 2, 1, 3});
+        auto qkv_out = qkv_norm( qkv(x) ).view({ B, this->opt.n_features, this->opt.n_heads, 3*opt.head_size  });
+        qkv_out = qkv_out.transpose(1, 2);
 
-        auto attn_weights = torch::softmax( torch::matmul(Q, K) / logit_scale, -1 );
-        auto A = torch::matmul(attn_weights, V).permute({0, 2, 1, 3}); // ( B, n_output_entities, heads, m_State)
-        A = A.contiguous().view({-1, this->opt.n_features, this->opt.n_embed});
+        auto qkv_split = qkv_out.split_with_sizes({opt.head_size, opt.head_size, opt.head_size}, -1);
+        auto[q, k, v] = std::tie(qkv_split[0], qkv_split[1], qkv_split[2]);
+        q = q * pow(opt.head_size, -0.5);
 
-        return {A, attn_weights};
+        auto dot_product = torch::matmul(q, k.transpose(2, 3)); // [B, H, N, N]
+        auto weights = torch::softmax(dot_product, -1);
+        auto output = torch::matmul(weights, v); // [B, H, N, V]
+
+        output = output.transpose(1, 2);  // [B, N. H, V]
+        output = output.flatten(2); // [B, N, H * V]
+
+        return { output, weights};
     }
 
     RelationalModuleImpl::RelationalModuleImpl(Option opt): ModuleWithSizeInfoImpl(opt){
@@ -80,12 +75,13 @@ namespace sam_dn{
         auto out = pos_enc->outputSize();
         seq->push_back( pos_enc );
 
-        opt.Input(out);
+        opt.attn.Input(out);
         if (opt.recurrent) {
-            AttentionBlock attn(opt.attn);
+            AttentionBlock b(opt.attn);
             for(int i = 0; i < opt.n_blocks; i++) {
-                seq->push_back(attn);
+                seq->push_back(b);
             }
+
         }else{
             for(int i = 0; i < opt.n_blocks; i++) {
                 seq->push_back(AttentionBlock(opt.attn));

@@ -21,7 +21,7 @@ namespace sam_dn{
                     ,device(opt.device)
             {
 
-        opt.type = description() + std::to_string(instance_count);
+        opt.type = description() + std::to_string( opt.id.template value_or(instance_count) );
         instance_id = opt.type;
 
         OptionType implOpt(opt.InputSize(), opt.hidden_size);
@@ -165,7 +165,7 @@ namespace sam_dn{
         if constexpr(type == 'l'){
 
             x->template insert_or_assign(this->instance_id + "_hx", std::get<0>(this->m_States).flatten(0, 1).data());
-            x->template insert_or_assign(this->instance_id + "_hx", std::get<1>(this->m_States).flatten(0, 1).data());
+            x->template insert_or_assign(this->instance_id + "_cx", std::get<1>(this->m_States).flatten(0, 1).data());
         }else{
             x->template insert_or_assign(this->instance_id , this->m_States.flatten(0, 1).data());
 
@@ -178,7 +178,6 @@ namespace sam_dn{
         auto const &input = x->at(this->m_Input);
         auto const &env_mask = reset_states ? x->at("mask") : torch::Tensor{};
         torch::Tensor out;
-
         if (input.size(0) == size_hx(x, 0) ) {
             out = pass( reset_states ? env_mask.unsqueeze(0) : env_mask,
                         input.unsqueeze(0), *x).squeeze(0);

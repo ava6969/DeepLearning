@@ -15,12 +15,9 @@ namespace sam_dn {
 
     class AttentionBlockImpl : public torch::nn::Module {
 
-        torch::nn::LayerNorm q_norm{nullptr}, k_norm{nullptr}, v_norm{nullptr}, post_norm{nullptr};
-        torch::nn::Linear q{nullptr}, k{nullptr}, v{nullptr}, w1{nullptr}, w2{nullptr};
-        bool max_out = true;
+        torch::nn::LayerNorm qkv_norm{nullptr}, post_norm{nullptr};
+        torch::nn::Linear qkv{nullptr}, w1{nullptr}, w2{nullptr};
         std::pair<torch::Tensor, torch::Tensor > attention_forward( torch::Tensor const& x);
-        float logit_scale;
-        int embed_head_ratio;
         SelfAttentionOption opt;
         inline static int global_instance_counter{}, instance_id;
 
@@ -44,7 +41,11 @@ namespace sam_dn {
             bool recurrent{true};
 
             BaseModuleOption& Input(std::vector<int64_t> const& x) override {
-                attn.Input(x);
+                if(x.size() != 3){
+                    throw std::runtime_error("input to attnetion must be 3D, Make sure was not flattened prior, "
+                                             "not "s + std::to_string(x.size()) + " length." );
+                }
+                attn.Input({x[1]* x[2], x[0] + 2});
                 return *this;
             }
         };

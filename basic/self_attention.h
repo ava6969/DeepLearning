@@ -12,13 +12,17 @@
 namespace sam_dn{
 
     struct SelfAttentionOption: BaseModuleOption{
-        int64_t n_heads{}, n_embed{};
+        int64_t n_heads{}, head_size{};
         bool layer_norm{}, post_layer_norm{};
         float qk_w{}, v_w{}, post_w{};
         std::optional<bool> max_pool{};
         int64_t n_features{}, features_size{};
 
         BaseModuleOption& Input(std::vector<int64_t> const& x) override {
+            if(x.size() != 2){
+                throw std::runtime_error("input to attnetion must be 2D, Make sure was not flattened prior, "
+                                         "not "s + std::to_string(x.size()) + " length." );
+            }
             n_features = x.at(0);
             features_size = x.at(1);
             return *this;
@@ -56,7 +60,7 @@ namespace sam_dn{
 }
 
 SAM_OPTIONS(BaseModuleOption, SelfAttentionOption,
-            SELF(n_embed), SELF(n_heads), SELF(layer_norm), SELF(post_layer_norm),
+            SELF(head_size), SELF(n_heads), SELF(layer_norm), SELF(post_layer_norm),
             SELF(qk_w), SELF(v_w), SELF(max_pool), SELF(post_w), SELF(store_state));
 
 #endif //DEEP_NETWORKS_SELF_ATTENTION_H
