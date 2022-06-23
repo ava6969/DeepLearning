@@ -7,20 +7,23 @@
 
 
 int main(){
+
+    torch::manual_seed(1);
     sam_dn::RelationalModuleImpl::Option opt;
     opt.recurrent = true;
     opt.n_blocks = 2;
     opt.attn.n_heads = 2;
     opt.attn.head_size = 64;
     opt.input = "test";
-    opt.dict_opt["test"] = {64, 14, 14};
+    opt.dict_opt["test"] = {3, 5, 5};
+    opt.weight_init_param = sqrt(2);
+    opt.weight_init_type = "orthogonal";
 
     RelationalModule encode(opt);
     std::cout << encode << "\n";
 
-    auto test = torch::randint(255, {1, 64, 14, 14}) / 255;
-    std::cout << encode(test).sizes() << "\n";
+    auto test = torch::randint(255, {6, 3, 5, 5}) / 255;
+    std::cout << encode(test) << "\n";
 
-    for(auto const& n: encode->named_parameters())
-        std::cout << n.key() << "\t" <<  n.value().data_ptr() << "\n";
+
 }

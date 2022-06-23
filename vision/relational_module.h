@@ -20,6 +20,7 @@ namespace sam_dn {
         std::pair<torch::Tensor, torch::Tensor > attention_forward( torch::Tensor const& x);
         SelfAttentionOption opt;
         inline static int global_instance_counter{}, instance_id;
+        float scale;
 
     public:
 
@@ -32,6 +33,7 @@ namespace sam_dn {
 
     class RelationalModuleImpl : public ModuleWithSizeInfoImpl {
         torch::nn::Sequential seq{nullptr};
+
 
     public:
 

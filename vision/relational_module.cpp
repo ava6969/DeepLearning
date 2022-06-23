@@ -13,16 +13,17 @@ namespace sam_dn{
             torch::nn::LayerNormOptions({opt.head_size * 3 * opt.n_heads }).elementwise_affine(true) ) ) ),
     post_norm(register_module("post_norm", torch::nn::LayerNorm(
             torch::nn::LayerNormOptions({opt.features_size}).elementwise_affine(true) ) ) ),
-    qkv(register_module("qkv", torch::nn::Linear( opt.features_size, 3*opt.head_size*opt.n_heads  ) ) ),
-    w1(register_module("w_1", torch::nn::Linear(opt.head_size*opt.n_heads , opt.features_size))),
-    w2(register_module("w_2", torch::nn::Linear(opt.features_size, opt.features_size))),
+    qkv(register_module("qkv",
+                        torch::nn::Linear( torch::nn::LinearOptions(opt.features_size, 3*opt.head_size*opt.n_heads).bias(false)  ) ) ),
+    w1(register_module("w_1", torch::nn::Linear(  torch::nn::LinearOptions(opt.head_size*opt.n_heads , opt.features_size ).bias(false) ))),
+    w2(register_module("w_2", torch::nn::Linear( torch::nn::LinearOptions(opt.features_size, opt.features_size).bias(false)))),
     opt( opt )
     {
         instance_id = global_instance_counter++;
         initializeWeightBias(qkv, opt);
         initializeWeightBias( w1, opt);
         initializeWeightBias( w2, opt);
-
+        scale = 1 / pow(opt.head_size, 0.5);
     }
 
 
@@ -49,23 +50,26 @@ namespace sam_dn{
         return post_norm(z);
     }
 
-    std::pair<torch::Tensor, torch::Tensor> AttentionBlockImpl::attention_forward(torch::Tensor const& x) {
-        auto B = x.size(0);
-        auto qkv_out = qkv_norm( qkv(x) ).view({ B, this->opt.n_features, this->opt.n_heads, 3*opt.head_size  });
-        qkv_out = qkv_out.transpose(1, 2);
+    std::pair<torch::Tensor, torch::Tensor> AttentionBlockImpl::attention_forward(torch::Tensor const& x_in) {
+        // [hlen x bsz x n_head x d_head]
+        auto x = x_in.transpose(0, 1);
 
-        auto qkv_split = qkv_out.split_with_sizes({opt.head_size, opt.head_size, opt.head_size}, -1);
+        auto qkv_split = torch::chunk( qkv_norm(qkv(x)), 3, -1 );
         auto[q, k, v] = std::tie(qkv_split[0], qkv_split[1], qkv_split[2]);
-        q = q * pow(opt.head_size, -0.5);
 
-        auto dot_product = torch::matmul(q, k.transpose(2, 3)); // [B, H, N, N]
+        q = q.view({x.size(0), x.size(1), opt.n_heads, opt.head_size});
+        k = k.view({x.size(0), x.size(1), opt.n_heads, opt.head_size});
+        v = v.view({x.size(0), x.size(1), opt.n_heads, opt.head_size});
+
+        auto dot_product = torch::einsum( "ibnd,jbnd->ijbn", {q, k});   // [qlen x klen x bsz x n_head]
+        dot_product.mul_(scale);
+
         auto weights = torch::softmax(dot_product, -1);
-        auto output = torch::matmul(weights, v); // [B, H, N, V]
+        // [qlen x klen x bsz x n_head] + [klen x bsz x n_head x d_head] -> [qlen x bsz x n_head x d_head]
+        auto output = torch::einsum("ijbn,jbnd->ibnd", {weights, v});
+        output = output.contiguous().view( {output.size(0), output.size(1), opt.n_heads * opt.head_size} );
 
-        output = output.transpose(1, 2);  // [B, N. H, V]
-        output = output.flatten(2); // [B, N, H * V]
-
-        return { output, weights};
+        return { output.transpose(0, 1), weights.transpose(0, 1)};
     }
 
     RelationalModuleImpl::RelationalModuleImpl(Option opt): ModuleWithSizeInfoImpl(opt){

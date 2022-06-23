@@ -23,4 +23,13 @@ int main(){
     std::cout << std::get<0>(s).sizes() << "\n";
     std::cout << std::get<1>(s).sizes() << "\n";
 
+    c_lstm.batch_first = false;
+    test = torch::randint(255, {7, 5, 3, 4, 4}) / 255;
+    torch::nn::Conv2DLSTM c2(c_lstm);
+    std::tie(out, s) = c2(test);
+
+    std::cout << out.sizes() << "\n";
+    std::cout << std::get<0>(s).sizes() << "\n";
+    std::cout << std::get<1>(s).sizes() << "\n";
+
 }

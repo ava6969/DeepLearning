@@ -27,7 +27,8 @@ namespace torch::nn {
             torch::optional<std::tuple<Tensor, Tensor>> prev_state) {
 
         auto B = input.size(0);
-        prev_state = prev_state.template value_or( zero_states(B, input.device()));
+        if(not prev_state)
+            prev_state = zero_states(B, input.device());
         auto gates = input_to_hidden(input);
         gates += hidden_to_hidden(std::get<0>(*prev_state));
         gates += b;
@@ -69,7 +70,9 @@ namespace torch::nn {
         int64_t T =  opt.batch_first ? input.size(1) : input.size(0);
         int64_t B =  opt.batch_first ? input.size(0) : input.size(1);
         auto input_tensor = opt.batch_first ? input : input.transpose(0, 1);
-        prev_state = prev_state.value_or(zero_states(B, input.device()));
+
+        if(not prev_state)
+            prev_state = zero_states(B, input.device());
 
         std::tuple< std::vector< torch::Tensor >, std::vector<  torch::Tensor > > last_state_list;
         int cell_layer_idx = 0;
@@ -81,7 +84,9 @@ namespace torch::nn {
 
             std::vector<torch::Tensor>  output_inner(T);
             for(int64_t t = 0; t < T; t++){
-                auto it =  input_tensor.index_select(2, torch::tensor(t) );
+                std::cout << input_tensor.sizes() << "\n";
+                auto it =  input_tensor.index_select(1, torch::tensor(t) ).squeeze(1);
+                std::cout << it.sizes() << "\n";
                 std::tie(it, hc) = cell->as<Conv2DLSTMCellImpl>()->forward( it, hc);
                 output_inner[t] = it;
             }
@@ -89,6 +94,7 @@ namespace torch::nn {
             input_tensor = torch::stack(output_inner, 1);
             std::get<0>(last_state_list).emplace_back(std::get<0>(hc).clone());
             std::get<1>(last_state_list).emplace_back(std::get<1>(hc).clone());
+            cell_layer_idx++;
         }
 
         return { opt.batch_first ? input_tensor : input_tensor.transpose(0, 1),
