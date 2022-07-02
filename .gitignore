@@ -5,3 +5,6 @@
 /tensorboard_logger/test
 CMakeUserPresets.json
 .idea
+
+# VSCode
+/.vscode
