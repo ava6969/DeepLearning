@@ -39,6 +39,15 @@ class CnnVaeImpl : public torch::nn::Module{
             return m_Decoder->forward(decoder_in);
         }
 
+        void pretty_print(std::ostream& stream) const override {
+            stream  << "sam_rl::CnnVae"
+                    << "("
+                    << "ZDim=" << this->m_ZDim << ", "
+                    << "Height=" << this->m_Height << ", "
+                    << "Width=" << this->m_Width << ", "
+                    << "Channel=" << this->m_Channel << ", "
+                    << ")";
+        }
     };
 
     TORCH_MODULE(CnnVae);

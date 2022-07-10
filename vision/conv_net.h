@@ -104,6 +104,17 @@ namespace sam_dn {
         CNNImpl()=default;
 
         explicit CNNImpl(CNNOption const& opt);
+
+        void pretty_print(std::ostream& stream) const override {
+            stream  << "sam_dn::ConvNet"
+                    << "("
+                    << "bias_init_param=" << this->opt.bias_init_param << ", "
+                    << "bias_init_type=" << this->opt.bias_init_type << ", "
+                    << "flatten_output=" << this->opt.flatten_output << ", "
+                    << "weight_init_param=" << this->opt.weight_init_param << ", "
+                    << "weight_init_type=" << this->opt.weight_init_type
+                    << ")";
+        }
         explicit CNNImpl(BaseModuleOption& opt):CNNImpl( dynamic_cast<CNNOption&>(opt) ) {}
     };
 

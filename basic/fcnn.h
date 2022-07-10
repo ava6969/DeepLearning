@@ -43,6 +43,16 @@ namespace sam_dn{
         inline torch::Tensor forward(const torch::Tensor &x) noexcept override {
             return m_BaseModel->forward(x.reshape({-1, opt.dims[0]}));
         }
+        
+        void pretty_print(std::ostream& stream) const override {
+            stream  << "sam_dn::FCNN"
+                    << "("
+                    << "act_fn=" << this->opt.act_fn << ", "
+                    << "weight_init_param=" << this->opt.weight_init_param << ", "
+                    << "bias_init_param=" << this->opt.bias_init_param << ", "
+                    << "new_bias=" << this->opt.new_bias
+                    << ")";
+        }
     };
     TORCH_MODULE(FCNN);
 }
