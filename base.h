@@ -5,7 +5,14 @@
 #pragma once
 
 #include "common/yaml_helper.h"
-#include "torch/torch.h"
+
+#undef slots
+
+#include <torch/torch.h>
+
+#include <torch/script.h>
+
+#define slots Q_SLOTS
 
 #define REGISTER_MODULE(attr, inst) this-> attr = register_module(#attr, inst )
 

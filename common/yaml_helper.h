@@ -6,8 +6,9 @@
 
 #include "yaml-cpp/yaml.h"
 #include <optional>
-#include <torch/torch.h>
 #include "variant"
+#include "c10/core/Device.h"
+
 
 using namespace std::string_literals;
 
@@ -155,7 +156,7 @@ namespace YAML {
     }
 
     inline static void get_t(const YAML::Node &node, NodePair< std::optional<c10::Device> > arg){
-        arg.value = node["device"].IsDefined() ? torch::Device(node["device"].as<std::string>()) : c10::kCPU;
+        arg.value = node["device"].IsDefined() ? c10::Device(node["device"].as<std::string>()) : c10::kCPU;
     }
 
     template<class T>
